@@ -122,7 +122,6 @@ def prompt():
             interval = input()
             take_multi_photos(num_pics, interval)
 
-
 def main():
     
     global first

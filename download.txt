@@ -1,3 +1,4 @@
 pip install libsonyapi
 pip install pillow
 pip install image-utils
+pip install gphoto2
