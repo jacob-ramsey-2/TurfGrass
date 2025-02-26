@@ -9,32 +9,33 @@ import sys
 import mimetypes
 
 # set up logging and global variables
+def setup():
+    logging.basicConfig(format='%(levelname)s: %(name)s: %(message)s', level=logging.WARNING)
+    callback_obj = gp.check_result(gp.use_python_logging())
 
-logging.basicConfig(format='%(levelname)s: %(name)s: %(message)s', level=logging.WARNING)
-callback_obj = gp.check_result(gp.use_python_logging())
 
-global APERTURE_SETTINGS 
-APERTURE_SETTINGS = ['f/1.4', 'f/2.0', 'f/2.8', 'f/4.0', 'f/5.6', 'f/8.0', 'f/11.0', 'f/16.0', 'f/22.0', 'f/32.0']
-global SHUTTER_SPEED_SETTINGS
-SHUTTER_SPEED_SETTINGS = ['1/8000', '1/6400', '1/5000', '1/4000', '1/3200', '1/2500', '1/2000', '1/1600', '1/1250', '1/1000', '1/800', '1/640', '1/500', '1/400', '1/320', '1/250', '1/200', '1/160', '1/125', '1/100', '1/80', '1/60', '1/50', '1/40', '1/30', '1/25', '1/20', '1/15', '1/13', '1/10', '1/8', '1/6', '1/5', '1/4', '0.3', '0.4', '0.5', '0.6', '0.8', '1', '1.3', '1.6', '2', '2.5', '3.2', '4', '5', '6', '8', '10', '13', '15', '20', '25', '30']
-global ISO_SETTINGS
-ISO_SETTINGS = ['100', '200', '400', '800', '1600', '3200', '6400', '12800', '25600', '51200', '102400']
-global WHITE_BALANCE_SETTINGS
-WHITE_BALANCE_SETTINGS = ['Auto', 'Daylight', 'Cloudy', 'Shade', 'Tungsten', 'Fluorescent', 'Flash', 'Custom']  
-global FOCUS_SETTINGS
-FOCUS_SETTINGS = ['Manual', 'Auto']
-global EXPOSURE_MODE_SETTINGS
-EXPOSURE_MODE_SETTINGS = ['Manual', 'Aperture Priority', 'Shutter Priority', 'Program', 'Bulb']
-global SATURATION_SETTINGS
-SATURATION_SETTINGS = ['Normal', 'Medium Low', 'Low', 'Medium High', 'High']
-global CONTRAST_SETTINGS
-CONTRAST_SETTINGS = ['Normal', 'Medium Low', 'Low', 'Medium High', 'High']
-global SHARPNESS_SETTINGS
-SHARPNESS_SETTINGS = ['Normal', 'Medium Low', 'Low', 'Medium High', 'High']
-global SETTINGS
-SETTINGS = [APERTURE_SETTINGS, SHUTTER_SPEED_SETTINGS, ISO_SETTINGS, WHITE_BALANCE_SETTINGS, FOCUS_SETTINGS, EXPOSURE_MODE_SETTINGS, SATURATION_SETTINGS, CONTRAST_SETTINGS, SHARPNESS_SETTINGS]
-global SETTINGS_NAMES  
-SETTINGS_NAMES = ['aperture', 'shutter_speed', 'iso', 'white_balance', 'focus', 'exposure_mode', 'saturation', 'contrast', 'sharpness']
+    global APERTURE_SETTINGS 
+    APERTURE_SETTINGS = ['f/1.4', 'f/2.0', 'f/2.8', 'f/4.0', 'f/5.6', 'f/8.0', 'f/11.0', 'f/16.0', 'f/22.0', 'f/32.0']
+    global SHUTTER_SPEED_SETTINGS
+    SHUTTER_SPEED_SETTINGS = ['1/8000', '1/6400', '1/5000', '1/4000', '1/3200', '1/2500', '1/2000', '1/1600', '1/1250', '1/1000', '1/800', '1/640', '1/500', '1/400', '1/320', '1/250', '1/200', '1/160', '1/125', '1/100', '1/80', '1/60', '1/50', '1/40', '1/30', '1/25', '1/20', '1/15', '1/13', '1/10', '1/8', '1/6', '1/5', '1/4', '0.3', '0.4', '0.5', '0.6', '0.8', '1', '1.3', '1.6', '2', '2.5', '3.2', '4', '5', '6', '8', '10', '13', '15', '20', '25', '30']
+    global ISO_SETTINGS
+    ISO_SETTINGS = ['100', '200', '400', '800', '1600', '3200', '6400', '12800', '25600', '51200', '102400']
+    global WHITE_BALANCE_SETTINGS
+    WHITE_BALANCE_SETTINGS = ['Auto', 'Daylight', 'Cloudy', 'Shade', 'Tungsten', 'Fluorescent', 'Flash', 'Custom']  
+    global FOCUS_SETTINGS
+    FOCUS_SETTINGS = ['Manual', 'Auto']
+    global EXPOSURE_MODE_SETTINGS
+    EXPOSURE_MODE_SETTINGS = ['Manual', 'Aperture Priority', 'Shutter Priority', 'Program', 'Bulb']
+    global SATURATION_SETTINGS
+    SATURATION_SETTINGS = ['Normal', 'Medium Low', 'Low', 'Medium High', 'High']
+    global CONTRAST_SETTINGS
+    CONTRAST_SETTINGS = ['Normal', 'Medium Low', 'Low', 'Medium High', 'High']
+    global SHARPNESS_SETTINGS
+    SHARPNESS_SETTINGS = ['Normal', 'Medium Low', 'Low', 'Medium High', 'High']
+    global SETTINGS
+    SETTINGS = [APERTURE_SETTINGS, SHUTTER_SPEED_SETTINGS, ISO_SETTINGS, WHITE_BALANCE_SETTINGS, FOCUS_SETTINGS, EXPOSURE_MODE_SETTINGS, SATURATION_SETTINGS, CONTRAST_SETTINGS, SHARPNESS_SETTINGS]
+    global SETTINGS_NAMES  
+    SETTINGS_NAMES = ['aperture', 'shutter_speed', 'iso', 'white_balance', 'focus', 'exposure_mode', 'saturation', 'contrast', 'sharpness']
 
 # connect to camera establish basic settings
 def connect_to_cam():
@@ -174,7 +175,7 @@ def prompt():
 
 # main function
 def main():
-    
+    setup()
     global first
     first = True
     while True:
