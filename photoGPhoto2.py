@@ -138,6 +138,9 @@ def prompt():
         for i in range(len(SETTINGS)):
             print(f"Please enter the {SETTINGS_NAMES[i]} setting: {SETTINGS[i]}")
             setting = input()
+            while setting not in SETTINGS[i]:
+                print(f"Invalid setting. Please enter a valid {SETTINGS_NAMES[i]} setting: {SETTINGS[i]}")
+                setting = input()
             set_camera_setting(camera, SETTINGS_NAMES[i], setting)
         
         # print summary of settings
@@ -160,7 +163,11 @@ def prompt():
         
         print("How many pictures do you want to take?")
         num_pics = input()
-        if input() == 1:
+        while num_pics > 40:
+            print("How many pictures do you want to take?")
+            num_pics = input()
+
+        if num_pics == 1:
 
             print('Capturing 1 image')
             take_photo()
