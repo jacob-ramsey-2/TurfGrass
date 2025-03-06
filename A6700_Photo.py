@@ -1,7 +1,7 @@
 import time
 import os
 from google.cloud import storage
-import gphoto2 as gp  # type: ignore
+import gphoto2 as gp 
 import logging
 import locale
 import subprocess
@@ -61,7 +61,7 @@ def connect_to_cam():
     print('Summary')
     print('=======')
     print(text.text)
-    
+
 # save to Google Cloud Storage    
 def save_to_gcs(image_file):
 
@@ -162,8 +162,9 @@ def prompt():
             prompt_settings()
         
         print("How many pictures do you want to take?")
-        num_pics = input()
+        num_pics = int(input())
         while num_pics > 40:
+            print("Please enter a number less than 40")
             print("How many pictures do you want to take?")
             num_pics = input()
 
@@ -174,7 +175,7 @@ def prompt():
         
         else:
             print("How many seconds inbetween each picture?")
-            interval = input()
+            interval = int(input())
             for i in range(num_pics):
                 print(f"Capturing image {i+1}")
                 take_photo()
@@ -183,10 +184,15 @@ def prompt():
 # main function
 def main():
     setup()
+    connect_to_cam()
     global first
     first = True
-    while True:
+    continue_prompt = True
+    while continue_prompt:
         prompt()
+        print("Do you want to continue? (y/n)")
+        if input() == "n" or "N":
+            continue_prompt = False
 
 if __name__ == "__main__":
     main()

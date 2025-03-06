@@ -8,16 +8,6 @@ import time
 import os
 from google.cloud import storage
 
-# connect to camera establish basic settings
-'''def connect_to_cam():
-    camera = Camera()  # create camera instance
-    camera_info = camera.info()  # get camera camera_info
-    print(camera_info)
-    print(camera.services)
-    print(camera.name)  # print name of camera
-    print(camera.api_version)  # print api version of camera
-'''
-
 # save to Google Cloud Storage    
 def save_to_gcs():
     # Set your bucket name
@@ -122,6 +112,7 @@ def prompt():
             interval = input()
             take_multi_photos(num_pics, interval)
 
+# main function
 def main():
     
     global first
