@@ -12,4 +12,4 @@ for x in cameras:
     camera = pysony.SonyAPI(x)  # Corrected from 'QX addr=x' to just 'x'
     mode = camera.getAvailableApiList()
     print(mode)
-    print("")
+    print("")  
