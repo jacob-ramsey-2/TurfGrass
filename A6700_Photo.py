@@ -57,7 +57,7 @@ def connect_to_cam():
     
     print("Camera connected")
     # continue with rest of program
-    text = gp.gp_camera_get_summary(camera)
+    text = gp.check_result(gp.gp_camera_get_summary(camera))
     print('Summary')
     print('=======')
     print(text.text)
