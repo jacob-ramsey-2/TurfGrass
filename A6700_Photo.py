@@ -84,8 +84,28 @@ def save_to_gcs(image_file):
         # Create a blob object
         blob = bucket.blob(destination_name)
 
-        # Get the image data and MIME type
-        image_data = image_file.get_data_and_size()
+        # Get the image data as bytes
+        try:
+            # First try to get data as bytes
+            image_data = image_file.get_data_and_size()
+            # Check if image_data is bytes
+            if not isinstance(image_data, bytes):
+                # If not bytes, try to convert to bytes
+                image_data = bytes(image_file.get_data_and_size())
+        except Exception as e:
+            print(f"Error getting image data: {str(e)}")
+            # Alternative approach: save to temporary file first
+            temp_file = f"temp_{destination_name}"
+            image_file.save(temp_file)
+            with open(temp_file, 'rb') as f:
+                image_data = f.read()
+            # Clean up temp file
+            try:
+                os.remove(temp_file)
+            except:
+                pass
+
+        # Get MIME type
         mime_type, _ = mimetypes.guess_type(destination_name)
         if mime_type is None:
             mime_type = 'application/octet-stream'  # Default MIME type if unknown
@@ -100,19 +120,48 @@ def save_to_gcs(image_file):
 
 # take single photo
 def take_photo():
+    try:
+        global file_path
+        # Capture a single image
+        file_path = camera.capture(gp.GP_CAPTURE_IMAGE)
 
-    global file_path
-    # Capture a single image
-    file_path = camera.capture(gp.GP_CAPTURE_IMAGE)
+        # print Camera file path
+        print('Camera file path: {0}/{1}'.format(file_path.folder, file_path.name))
 
-    # print Camera file path
-    print('Camera file path: {0}/{1}'.format(file_path.folder, file_path.name))
-
-    # getting image from file path
-    camera_file = camera.file_get(file_path.folder, file_path.name, gp.GP_FILE_TYPE_NORMAL)
-
-    print("Saving image to GCS")
-    save_to_gcs(camera_file)
+        try:
+            # getting image from file path
+            camera_file = camera.file_get(file_path.folder, file_path.name, gp.GP_FILE_TYPE_NORMAL)
+            
+            print("Saving image to GCS")
+            save_to_gcs(camera_file)
+        except Exception as e:
+            print(f"Error retrieving or saving image: {str(e)}")
+            
+            # Try an alternative approach - download to local file first
+            try:
+                print("Trying alternative approach...")
+                target_path = os.path.join('.', file_path.name)
+                camera_file = camera.file_get(file_path.folder, file_path.name, gp.GP_FILE_TYPE_NORMAL)
+                camera_file.save(target_path)
+                print(f"Image saved locally to {target_path}")
+                
+                # Now try to upload the local file to GCS
+                with open(target_path, 'rb') as f:
+                    storage_client = storage.Client()
+                    bucket = storage_client.bucket("turfgrass")
+                    blob = bucket.blob(file_path.name)
+                    blob.upload_from_file(f)
+                    print(f"Image uploaded to GCS from local file")
+                
+                # Clean up local file
+                try:
+                    os.remove(target_path)
+                except:
+                    pass
+            except Exception as inner_e:
+                print(f"Alternative approach also failed: {str(inner_e)}")
+    except Exception as e:
+        print(f"Error taking photo: {str(e)}")
 
     return
 
