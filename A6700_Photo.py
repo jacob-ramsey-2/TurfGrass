@@ -7,6 +7,7 @@ import locale
 import subprocess
 import sys
 import mimetypes
+import datetime
 
 # set up logging and global variables
 def setup():
@@ -58,112 +59,118 @@ def connect_to_cam():
     print("Camera connected")
     # continue with rest of program
     text = gp.check_result(gp.gp_camera_get_summary(camera))
-    print('Summary')
-    print('=======')
-    print(text.text)
-
+    
 # save to Google Cloud Storage    
 def save_to_gcs(image_file):
-
     global file_path
 
     # Set your bucket name
     bucket_name = "turfgrass"  # Replace with your actual bucket name
     
-    # set image name to be saved in GCS
-    destination_name = file_path.name  
+    # Create a unique name with timestamp for GCS
+    try:
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        
+        # Make sure file_path is valid
+        if not hasattr(file_path, 'name') or not file_path.name:
+            print("Error: Invalid file_path object")
+            return None
+            
+        original_name = file_path.name
+        file_extension = original_name.split('.')[-1] if '.' in original_name else 'jpg'
+        destination_name = f"{original_name.split('.')[0]}_{timestamp}.{file_extension}"
+    except Exception as e:
+        print(f"Error creating filename: {str(e)}")
+        destination_name = f"image_{timestamp}.jpg"  # Fallback filename
 
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "ai-research-451903-6fb81b030f50.json"
+    
     try:
-        # Initialize the Google Cloud Storage client
+        print(f"Uploading to Google Cloud Storage as {destination_name}...")
+        
+        # Save to local file first (safer approach)
+        target_path = os.path.join('.', f"temp_{timestamp}.{file_extension}")
+        image_file.save(target_path)
+        print(f"Image saved locally to {target_path}")
+        
+        # Now upload to GCS from the local file
         storage_client = storage.Client()
-
-        # Get the bucket object
         bucket = storage_client.bucket(bucket_name)
-
-        # Create a blob object
         blob = bucket.blob(destination_name)
-
-        # Get the image data as bytes
-        try:
-            # First try to get data as bytes
-            image_data = image_file.get_data_and_size()
-            # Check if image_data is bytes
-            if not isinstance(image_data, bytes):
-                # If not bytes, try to convert to bytes
-                image_data = bytes(image_file.get_data_and_size())
-        except Exception as e:
-            print(f"Error getting image data: {str(e)}")
-            # Alternative approach: save to temporary file first
-            temp_file = f"temp_{destination_name}"
-            image_file.save(temp_file)
-            with open(temp_file, 'rb') as f:
-                image_data = f.read()
-            # Clean up temp file
-            try:
-                os.remove(temp_file)
-            except:
-                pass
-
-        # Get MIME type
-        mime_type, _ = mimetypes.guess_type(destination_name)
-        if mime_type is None:
-            mime_type = 'application/octet-stream'  # Default MIME type if unknown
-
-        # Upload the image file to GCS
-        blob.upload_from_string(image_data, content_type=mime_type)
-        print(f"Image uploaded to {destination_name} in bucket {bucket_name}")
+        
+        with open(target_path, 'rb') as f:
+            blob.upload_from_file(f)
+        
+        print(f"Image successfully uploaded to {destination_name} in bucket {bucket_name}")
+        
+        # Clean up local file
+        if os.path.exists(target_path):
+            os.remove(target_path)
+            print(f"Temporary file {target_path} removed")
 
     except Exception as e:
-        print(f"An error occurred: {str(e)}")
+        print(f"Error in save_to_gcs: {str(e)}")
+        # If there was an error, try to clean up any temporary files
+        try:
+            if 'target_path' in locals() and os.path.exists(target_path):
+                os.remove(target_path)
+        except:
+            pass
         return None
+    
+    return destination_name
 
 # take single photo
 def take_photo():
     try:
         global file_path
+        global camera
+        
+        # Generate a timestamp for unique filenames
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        
         # Capture a single image
-        file_path = camera.capture(gp.GP_CAPTURE_IMAGE)
-
-        # print Camera file path
-        print('Camera file path: {0}/{1}'.format(file_path.folder, file_path.name))
-
         try:
-            # getting image from file path
-            camera_file = camera.file_get(file_path.folder, file_path.name, gp.GP_FILE_TYPE_NORMAL)
+            file_path = gp.check_result(camera.capture(gp.GP_CAPTURE_IMAGE))
+            print('Camera file path: {0}/{1}'.format(file_path.folder, file_path.name))
+        except Exception as capture_error:
+            print(f"Error capturing image: {str(capture_error)}")
+            return False
+
+        # Wait a moment for the camera to process the image
+        time.sleep(1.0)  # Increased wait time
+        
+        try:
+            # Getting image from file path
+            camera_file = gp.check_result(camera.file_get(
+                file_path.folder, file_path.name, gp.GP_FILE_TYPE_NORMAL))
             
-            print("Saving image to GCS")
-            save_to_gcs(camera_file)
+            # Save to Google Cloud Storage
+            result = save_to_gcs(camera_file)
+            if result is None:
+                print("Failed to save to Google Cloud Storage")
+                return False
+                
+            # Delete the file from camera to free up memory
+            try:
+                camera.file_delete(file_path.folder, file_path.name)
+                print(f"Deleted file from camera")
+            except Exception as del_error:
+                print(f"Warning: Could not delete file from camera: {str(del_error)}")
+            
+            return True
+                
         except Exception as e:
             print(f"Error retrieving or saving image: {str(e)}")
+            return False
             
-            # Try an alternative approach - download to local file first
-            try:
-                print("Trying alternative approach...")
-                target_path = os.path.join('.', file_path.name)
-                camera_file = camera.file_get(file_path.folder, file_path.name, gp.GP_FILE_TYPE_NORMAL)
-                camera_file.save(target_path)
-                print(f"Image saved locally to {target_path}")
-                
-                # Now try to upload the local file to GCS
-                with open(target_path, 'rb') as f:
-                    storage_client = storage.Client()
-                    bucket = storage_client.bucket("turfgrass")
-                    blob = bucket.blob(file_path.name)
-                    blob.upload_from_file(f)
-                    print(f"Image uploaded to GCS from local file")
-                
-                # Clean up local file
-                try:
-                    os.remove(target_path)
-                except:
-                    pass
-            except Exception as inner_e:
-                print(f"Alternative approach also failed: {str(inner_e)}")
     except Exception as e:
-        print(f"Error taking photo: {str(e)}")
-
-    return
+        print(f"Error in take_photo: {str(e)}")
+        return False
+        
+    # Force garbage collection to free memory
+    import gc
+    gc.collect()
 
 # set camera settings
 def set_camera_setting(camera, setting_name, value):
@@ -211,6 +218,7 @@ def list_camera_settings(camera):
 
 # prompt user to enter settings and take picture
 def prompt():
+    global camera  # Add this line to access the global camera variable
 
     # Ask if user wants default settings
     print("Do you want to use default/auto settings? (yes/no)")
@@ -254,7 +262,55 @@ def prompt():
                 except Exception as e:
                     print(f"Could not set camera to Auto mode: {str(e)}")
                 
-                print("Using default/auto settings")
+                # Increase brightness by setting exposure compensation
+                try:
+                    # Get a fresh config after setting auto mode
+                    config = gp.check_result(gp.gp_camera_get_config(camera))
+                    
+                    # Try different possible names for exposure compensation
+                    exposure_comp_names = ["exposurecompensation", "exposurecomp", "exposure-compensation", "expcomp"]
+                    
+                    for name in exposure_comp_names:
+                        try:
+                            exp_comp = gp.check_result(gp.gp_widget_get_child_by_name(config, name))
+                            # Get current choices
+                            choice_count = gp.check_result(gp.gp_widget_count_choices(exp_comp))
+                            choices = [gp.check_result(gp.gp_widget_get_choice(exp_comp, i)) for i in range(choice_count)]
+                            
+                            # Find a positive exposure compensation value
+                            # Typically exposure compensation values are like: -2, -1.7, -1.3, -1, -0.7, -0.3, 0, 0.3, 0.7, 1, 1.3, 1.7, 2
+                            positive_values = [c for c in choices if isinstance(c, str) and (c.startswith("+") or (c[0].isdigit() and c != "0"))]
+                            
+                            if positive_values:
+                                # Choose a moderate positive value (around +1 if available)
+                                target_value = next((v for v in positive_values if v in ["1", "+1", "1.0", "+1.0"]), positive_values[0])
+                                gp.check_result(gp.gp_widget_set_value(exp_comp, target_value))
+                                gp.check_result(gp.gp_camera_set_config(camera, config))
+                                print(f"Increased brightness: set {name} to {target_value}")
+                                break
+                            else:
+                                print(f"No positive exposure compensation values found")
+                        except Exception as inner_e:
+                            continue
+                    
+                    # Try to increase ISO as an alternative way to increase brightness
+                    try:
+                        iso = gp.check_result(gp.gp_widget_get_child_by_name(config, "iso"))
+                        choice_count = gp.check_result(gp.gp_widget_count_choices(iso))
+                        choices = [gp.check_result(gp.gp_widget_get_choice(iso, i)) for i in range(choice_count)]
+                        
+                        # Find a higher ISO value (400 is a good balance for brightness without too much noise)
+                        if "400" in choices:
+                            gp.check_result(gp.gp_widget_set_value(iso, "400"))
+                            gp.check_result(gp.gp_camera_set_config(camera, config))
+                            print("Increased brightness: set ISO to 400")
+                    except Exception as iso_e:
+                        print(f"Could not adjust ISO: {str(iso_e)}")
+                    
+                except Exception as e:
+                    print(f"Could not increase brightness: {str(e)}")
+                
+                print("Using default/auto settings with increased brightness")
             except Exception as e:
                 print(f"Error setting default settings: {str(e)}")
                 print("Falling back to manual settings")
@@ -288,11 +344,17 @@ def prompt():
                 prompt_settings()
     
     print("How many pictures do you want to take?")
-    num_pics = int(input())
-    while num_pics > 40:
-        print("Please enter a number less than 40")
-        print("How many pictures do you want to take?")
-        num_pics = input()
+    while True:
+        try:
+            num_pics = int(input())
+            if num_pics > 40:
+                print("Please enter a number less than 40")
+                print("How many pictures do you want to take?")
+                continue
+            break
+        except ValueError:
+            print("Please enter a valid number")
+            print("How many pictures do you want to take?")
 
     if num_pics == 1:
 
@@ -301,11 +363,56 @@ def prompt():
     
     else:
         print("How many seconds inbetween each picture?")
-        interval = int(input())
+        while True:
+            try:
+                interval = int(input())
+                break
+            except ValueError:
+                print("Please enter a valid number for the interval")
+                print("How many seconds inbetween each picture?")
+        
+        # Remove interval restrictions
+        # User can set any interval they want
+        
+        successful_captures = 0
         for i in range(num_pics):
-            print(f"Capturing image {i+1}")
-            take_photo()
-            time.sleep(int(interval))    
+            print(f"Capturing image {i+1} of {num_pics}")
+            
+            # Take photo and check result
+            result = False
+            try:
+                result = take_photo()
+            except Exception as e:
+                print(f"Exception during capture {i+1}: {str(e)}")
+                result = False
+                
+            # Update success counter
+            if result:
+                successful_captures += 1
+                print(f"Successfully captured image {i+1}")
+            else:
+                print(f"Failed to capture image {i+1}")
+            
+            # Sleep between captures if not the last one
+            if i < num_pics - 1:
+                print(f"Waiting {interval} seconds before next capture...")
+                time.sleep(interval)
+                
+            # If we've had multiple failures, try to reset the camera
+            if i > 0 and successful_captures == 0:
+                try:
+                    print("Attempting to reset camera connection...")
+                    camera.exit()
+                    time.sleep(2)
+                    camera = gp.check_result(gp.gp_camera_new())
+                    camera.init()
+                    print("Camera connection reset successfully")
+                except Exception as reset_error:
+                    print(f"Could not reset camera: {str(reset_error)}")
+                    print("You may need to restart the program")
+                    break
+        
+        print(f"Capture session complete. Successfully captured {successful_captures} of {num_pics} images.")
 
 # main function
 def main():
@@ -317,7 +424,8 @@ def main():
     while continue_prompt:
         prompt()
         print("Do you want to continue? (y/n)")
-        if input() == "n" or "N":
+        user_input = input().lower()
+        if user_input == "n" or user_input == "no":
             continue_prompt = False
 
 if __name__ == "__main__":
