@@ -8,6 +8,9 @@ import subprocess
 import sys
 import mimetypes
 import datetime
+import platform  # To detect the operating system
+import traceback
+from pathlib import Path
 
 # set up logging and global variables
 def setup():
@@ -60,117 +63,128 @@ def connect_to_cam():
     # continue with rest of program
     text = gp.check_result(gp.gp_camera_get_summary(camera))
     
-# save to Google Cloud Storage    
-def save_to_gcs(image_file):
-    global file_path
-
-    # Set your bucket name
-    bucket_name = "turfgrass"  # Replace with your actual bucket name
-    
-    # Create a unique name with timestamp for GCS
-    try:
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        
-        # Make sure file_path is valid
-        if not hasattr(file_path, 'name') or not file_path.name:
-            print("Error: Invalid file_path object")
-            return None
-            
-        original_name = file_path.name
-        file_extension = original_name.split('.')[-1] if '.' in original_name else 'jpg'
-        destination_name = f"{original_name.split('.')[0]}_{timestamp}.{file_extension}"
-    except Exception as e:
-        print(f"Error creating filename: {str(e)}")
-        destination_name = f"image_{timestamp}.jpg"  # Fallback filename
-
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "ai-research-451903-6fb81b030f50.json"
-    
-    try:
-        print(f"Uploading to Google Cloud Storage as {destination_name}...")
-        
-        # Save to local file first (safer approach)
-        target_path = os.path.join('.', f"temp_{timestamp}.{file_extension}")
-        image_file.save(target_path)
-        print(f"Image saved locally to {target_path}")
-        
-        # Now upload to GCS from the local file
-        storage_client = storage.Client()
-        bucket = storage_client.bucket(bucket_name)
-        blob = bucket.blob(destination_name)
-        
-        with open(target_path, 'rb') as f:
-            blob.upload_from_file(f)
-        
-        print(f"Image successfully uploaded to {destination_name} in bucket {bucket_name}")
-        
-        # Clean up local file
-        if os.path.exists(target_path):
-            os.remove(target_path)
-            print(f"Temporary file {target_path} removed")
-
-    except Exception as e:
-        print(f"Error in save_to_gcs: {str(e)}")
-        # If there was an error, try to clean up any temporary files
-        try:
-            if 'target_path' in locals() and os.path.exists(target_path):
-                os.remove(target_path)
-        except:
-            pass
-        return None
-    
-    return destination_name
-
 # take single photo
 def take_photo():
     try:
-        global file_path
         global camera
         
         # Generate a timestamp for unique filenames
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        local_filename = f"capture_{timestamp}.jpg"
         
-        # Capture a single image
-        try:
-            file_path = gp.check_result(camera.capture(gp.GP_CAPTURE_IMAGE))
-            print('Camera file path: {0}/{1}'.format(file_path.folder, file_path.name))
-        except Exception as capture_error:
-            print(f"Error capturing image: {str(capture_error)}")
-            return False
-
-        # Wait a moment for the camera to process the image
-        time.sleep(1.0)  # Increased wait time
+        # Remove sound notification before taking the picture
+        print(f"Attempting to capture image...")
         
+        # Use a different approach to capture the image
+        # Instead of using camera.capture which returns a CameraFilePath,
+        # we'll use camera_capture_preview which returns the image data directly
         try:
-            # Getting image from file path
-            camera_file = gp.check_result(camera.file_get(
-                file_path.folder, file_path.name, gp.GP_FILE_TYPE_NORMAL))
+            # First try to capture a preview
+            preview_file = camera.capture_preview()
+            preview_file.save(local_filename)
+            print(f"Saved preview image to {local_filename}")
             
-            # Save to Google Cloud Storage
-            result = save_to_gcs(camera_file)
-            if result is None:
-                print("Failed to save to Google Cloud Storage")
+            # Upload to Google Cloud Storage
+            try:
+                # Set your bucket name
+                bucket_name = "turfgrass"
+                destination_name = f"image_{timestamp}.jpg"
+                
+                os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "ai-research-451903-6fb81b030f50.json"
+                
+                # Upload the file
+                storage_client = storage.Client()
+                bucket = storage_client.bucket(bucket_name)
+                blob = bucket.blob(destination_name)
+                
+                with open(local_filename, 'rb') as f:
+                    blob.upload_from_file(f)
+                
+                print(f"Image successfully uploaded to {destination_name} in bucket {bucket_name}")
+                
+                # Clean up local file
+                if os.path.exists(local_filename):
+                    os.remove(local_filename)
+                    print(f"Temporary file {local_filename} removed")
+                
+                return True
+                
+            except Exception as upload_error:
+                print(f"Error uploading to GCS: {str(upload_error)}")
                 return False
                 
-            # Delete the file from camera to free up memory
+        except Exception as preview_error:
+            print(f"Error capturing preview: {str(preview_error)}")
+            
+            # Try an alternative approach - trigger capture and download
             try:
-                camera.file_delete(file_path.folder, file_path.name)
-                print(f"Deleted file from camera")
-            except Exception as del_error:
-                print(f"Warning: Could not delete file from camera: {str(del_error)}")
-            
-            return True
+                print("Trying alternative capture method...")
                 
-        except Exception as e:
-            print(f"Error retrieving or saving image: {str(e)}")
-            return False
-            
+                # Trigger capture
+                camera.trigger_capture()
+                time.sleep(2)  # Wait for capture to complete
+                
+                # List files on camera
+                folder = "/"
+                for name, value in camera.folder_list_files(folder):
+                    print(f"Found file on camera: {folder}/{name}")
+                    
+                    # Get the most recent file
+                    camera_file = camera.file_get(folder, name, gp.GP_FILE_TYPE_NORMAL)
+                    camera_file.save(local_filename)
+                    print(f"Saved image to {local_filename}")
+                    
+                    # Upload to Google Cloud Storage
+                    try:
+                        # Set your bucket name
+                        bucket_name = "turfgrass"
+                        destination_name = f"image_{timestamp}.jpg"
+                        
+                        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "ai-research-451903-6fb81b030f50.json"
+                        
+                        # Upload the file
+                        storage_client = storage.Client()
+                        bucket = storage_client.bucket(bucket_name)
+                        blob = bucket.blob(destination_name)
+                        
+                        with open(local_filename, 'rb') as f:
+                            blob.upload_from_file(f)
+                        
+                        print(f"Image successfully uploaded to {destination_name} in bucket {bucket_name}")
+                        
+                        # Clean up local file
+                        if os.path.exists(local_filename):
+                            os.remove(local_filename)
+                            print(f"Temporary file {local_filename} removed")
+                        
+                        # Try to delete from camera
+                        try:
+                            camera.file_delete(folder, name)
+                            print(f"Deleted file from camera")
+                        except:
+                            pass
+                        
+                        return True
+                        
+                    except Exception as upload_error:
+                        print(f"Error uploading to GCS: {str(upload_error)}")
+                        return False
+                    
+                    # Only process the first file
+                    break
+                    
+            except Exception as alt_error:
+                print(f"Alternative capture method failed: {str(alt_error)}")
+                return False
+    
     except Exception as e:
         print(f"Error in take_photo: {str(e)}")
-        return False
         
     # Force garbage collection to free memory
     import gc
     gc.collect()
+    
+    return False
 
 # set camera settings
 def set_camera_setting(camera, setting_name, value):
@@ -378,6 +392,25 @@ def prompt():
         for i in range(num_pics):
             print(f"Capturing image {i+1} of {num_pics}")
             
+            # If this is not the first image and there's an interval, do a countdown
+            if i > 0 and interval > 3:
+                # Countdown with beeps for the last 3 seconds
+                countdown_start = interval - 3
+                if countdown_start > 0:
+                    print(f"Waiting {countdown_start} seconds before countdown...")
+                    time.sleep(countdown_start)
+                
+                # Final 3-second countdown with beeps
+                for count in range(3, 0, -1):
+                    print(f"Taking photo in {count}...")
+                    time.sleep(1)
+            elif i > 0:
+                # For short intervals, just wait and beep once
+                if interval > 0:
+                    print(f"Waiting {interval} seconds...")
+                    time.sleep(interval)
+                print("Taking photo now!")
+            
             # Take photo and check result
             result = False
             try:
@@ -393,11 +426,8 @@ def prompt():
             else:
                 print(f"Failed to capture image {i+1}")
             
-            # Sleep between captures if not the last one
-            if i < num_pics - 1:
-                print(f"Waiting {interval} seconds before next capture...")
-                time.sleep(interval)
-                
+            # No need for additional sleep here since we've already handled the interval
+            
             # If we've had multiple failures, try to reset the camera
             if i > 0 and successful_captures == 0:
                 try:
@@ -427,6 +457,72 @@ def main():
         user_input = input().lower()
         if user_input == "n" or user_input == "no":
             continue_prompt = False
+
+def interval_shooting(interval_seconds, count=None):
+    try:
+        while True:
+            # Check if we've reached the count limit
+            if count is not None and photo_count >= count:
+                print(f"Completed {count} photos. Exiting.")
+                break
+                
+            # Calculate time until next photo
+            current_time = time.time()
+            elapsed_time = current_time - start_time
+            photos_should_have_taken = int(elapsed_time / interval_seconds)
+            
+            if photos_should_have_taken > photo_count:
+                # Time to take another photo
+                print(f"\nTaking photo {photo_count + 1}")
+                if count is not None:
+                    print(f" of {count}")
+                
+                # Take the photo
+                file_path = take_photo()
+                
+                if file_path:
+                    # Upload to Google Cloud Storage if enabled
+                    if upload_to_gcs:
+                        upload_file_to_gcs(file_path, bucket_name)
+                    
+                    photo_count += 1
+                    last_photo_time = time.time()
+                else:
+                    print("Failed to take photo. Retrying at next interval.")
+            
+            # Calculate time to next photo
+            next_photo_time = start_time + ((photo_count + 1) * interval_seconds)
+            wait_time = next_photo_time - time.time()
+            
+            # Only show countdown for waits longer than 3 seconds
+            if wait_time > 3:
+                # Display a simple countdown
+                print(f"\nNext photo in: ", end="", flush=True)
+                remaining = int(wait_time)
+                
+                while remaining > 3:
+                    print(f"{remaining}...", end="", flush=True)
+                    time.sleep(1)
+                    remaining -= 1
+                
+                # Final 3-second countdown without beeps
+                while remaining > 0:
+                    print(f"{remaining}...", end="", flush=True)
+                    time.sleep(1)
+                    remaining -= 1
+                
+                print("Capturing!")
+            else:
+                # For short intervals, just wait
+                if wait_time > 0:
+                    time.sleep(wait_time)
+                print("Capturing!")
+            
+    except KeyboardInterrupt:
+        print("\nInterval shooting stopped by user.")
+    except Exception as e:
+        print(f"\nError during interval shooting: {str(e)}")
+        traceback.print_exc()
 
 if __name__ == "__main__":
     main()
