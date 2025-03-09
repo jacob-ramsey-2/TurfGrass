@@ -120,19 +120,53 @@ def take_photo():
 def set_camera_setting(camera, setting_name, value):
     # Get the camera configuration
     config = gp.check_result(gp.gp_camera_get_config(camera))
+    
+    # Map our setting names to actual camera config names
+    setting_map = {
+        'aperture': 'aperture',
+        'shutter_speed': 'shutterspeed',
+        'iso': 'iso',
+        'white_balance': 'whitebalance',
+        'focus': 'focusmode',
+        'exposure_mode': 'expprogram',
+        'saturation': 'saturation',
+        'contrast': 'contrast',
+        'sharpness': 'sharpness'
+    }
+    
+    # Get the actual camera setting name
+    camera_setting_name = setting_map.get(setting_name, setting_name)
+    
+    try:
+        # Try to find the setting widget
+        setting_widget = gp.check_result(gp.gp_widget_get_child_by_name(config, camera_setting_name))
+        
+        # Set the value for the setting
+        gp.check_result(gp.gp_widget_set_value(setting_widget, value))
+        
+        # Apply the configuration back to the camera
+        gp.check_result(gp.gp_camera_set_config(camera, config))
+        print(f"Successfully set {setting_name} to {value}")
+    except Exception as e:
+        print(f"Could not set {setting_name} to {value}: {str(e)}")
+        print("Available settings:")
+        list_camera_settings(camera)
 
-    # Find the setting widget
-    setting_widget = gp.check_result(gp.gp_widget_get_child_by_name(config, setting_name))
-
-    # Set the value for the setting
-    gp.check_result(gp.gp_widget_set_value(setting_widget, value))
-
-    # Apply the configuration back to the camera
-    gp.check_result(gp.gp_camera_set_config(camera, config))
+# Add a helper function to list available camera settings
+def list_camera_settings(camera):
+    config = gp.check_result(gp.gp_camera_get_config(camera))
+    for i in range(gp.check_result(gp.gp_widget_count_children(config))):
+        child = gp.check_result(gp.gp_widget_get_child(config, i))
+        name = gp.check_result(gp.gp_widget_get_name(child))
+        print(f"Setting: {name}")
 
 # prompt user to enter settings and take picture
 def prompt():
 
+    # Ask if user wants default settings
+    print("Do you want to use default/auto settings? (yes/no)")
+    use_defaults = input().lower()
+    
     # camera settings questions
     def prompt_settings():
         for i in range(len(SETTINGS)):
@@ -148,38 +182,81 @@ def prompt():
         print('===============')
         config = gp.check_result(gp.gp_camera_get_config(camera))
         for i in range(len(SETTINGS)):
-            setting_widget = gp.check_result(gp.gp_widget_get_child_by_name(config, SETTINGS_NAMES[i]))
-            print(f"{SETTINGS_NAMES[i]}: {gp.check_result(gp.gp_widget_get_value(setting_widget).value)}")
+            try:
+                setting_widget = gp.check_result(gp.gp_widget_get_child_by_name(config, SETTINGS_NAMES[i]))
+                print(f"{SETTINGS_NAMES[i]}: {gp.check_result(gp.gp_widget_get_value(setting_widget))}")
+            except Exception as e:
+                print(f"Could not get value for {SETTINGS_NAMES[i]}: {str(e)}")
     
     global first    
-    # if first time, set camera settings
+    # if first time or user wants default settings
     if first:
-        prompt_settings()
-
+        if use_defaults == "yes" or use_defaults == "y":
+            try:
+                # Set camera to auto mode
+                config = gp.check_result(gp.gp_camera_get_config(camera))
+                
+                # Try to set camera to auto/program mode
+                try:
+                    expprogram = gp.check_result(gp.gp_widget_get_child_by_name(config, "expprogram"))
+                    gp.check_result(gp.gp_widget_set_value(expprogram, "Auto"))
+                    gp.check_result(gp.gp_camera_set_config(camera, config))
+                    print("Camera set to Auto mode")
+                except Exception as e:
+                    print(f"Could not set camera to Auto mode: {str(e)}")
+                
+                print("Using default/auto settings")
+            except Exception as e:
+                print(f"Error setting default settings: {str(e)}")
+                print("Falling back to manual settings")
+                prompt_settings()
+        else:
+            prompt_settings()
     else:
         print("Do you want to change the previous settings? (y/n)")
-        if input() == "y" or "Y":
-            prompt_settings()
-        
+        change_settings = input().lower()
+        if change_settings == "y" or change_settings == "yes":
+            if use_defaults == "yes" or use_defaults == "y":
+                try:
+                    # Set camera to auto mode
+                    config = gp.check_result(gp.gp_camera_get_config(camera))
+                    
+                    # Try to set camera to auto/program mode
+                    try:
+                        expprogram = gp.check_result(gp.gp_widget_get_child_by_name(config, "expprogram"))
+                        gp.check_result(gp.gp_widget_set_value(expprogram, "Auto"))
+                        gp.check_result(gp.gp_camera_set_config(camera, config))
+                        print("Camera set to Auto mode")
+                    except Exception as e:
+                        print(f"Could not set camera to Auto mode: {str(e)}")
+                    
+                    print("Using default/auto settings")
+                except Exception as e:
+                    print(f"Error setting default settings: {str(e)}")
+                    print("Falling back to manual settings")
+                    prompt_settings()
+            else:
+                prompt_settings()
+    
+    print("How many pictures do you want to take?")
+    num_pics = int(input())
+    while num_pics > 40:
+        print("Please enter a number less than 40")
         print("How many pictures do you want to take?")
-        num_pics = int(input())
-        while num_pics > 40:
-            print("Please enter a number less than 40")
-            print("How many pictures do you want to take?")
-            num_pics = input()
+        num_pics = input()
 
-        if num_pics == 1:
+    if num_pics == 1:
 
-            print('Capturing 1 image')
+        print('Capturing 1 image')
+        take_photo()
+    
+    else:
+        print("How many seconds inbetween each picture?")
+        interval = int(input())
+        for i in range(num_pics):
+            print(f"Capturing image {i+1}")
             take_photo()
-        
-        else:
-            print("How many seconds inbetween each picture?")
-            interval = int(input())
-            for i in range(num_pics):
-                print(f"Capturing image {i+1}")
-                take_photo()
-                time.sleep(int(interval))    
+            time.sleep(int(interval))    
 
 # main function
 def main():
