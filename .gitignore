@@ -1,2 +1,5 @@
 *.json
 CameraRemoteCommand-2024.1.0
+temp_frames
+output_video.mp4
+

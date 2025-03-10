@@ -1,2 +1,0 @@
-google-cloud-storage>=1.42.0,<2.0.0
-gphoto2>=2.2.0,<3.0.0 
