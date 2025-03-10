@@ -312,7 +312,11 @@ def take_photo():
                 bucket_name = "turfgrass"
                 destination_name = f"image_{timestamp}.jpg"
                 
-                os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "ai-research-451903-6fb81b030f50.json"
+                # Find first json file in directory to use as credentials
+                json_files = [f for f in os.listdir() if f.endswith('.json')]
+                if not json_files:
+                    raise Exception("No JSON credential file found in directory")
+                os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = json_files[0]
                 
                 # Upload the file
                 storage_client = storage.Client()

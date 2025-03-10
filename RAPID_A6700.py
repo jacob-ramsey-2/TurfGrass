@@ -132,7 +132,6 @@ def create_video_from_images(image_folder, output_video_path, fps=30):
     images = []
     for img in os.listdir(image_folder):
         if img.endswith((".png", ".jpg", ".jpeg")):
-            # Extract timestamp from filename (frame_timestamp.jpg)
             try:
                 timestamp = float(img.split('_')[1].split('.jpg')[0])
                 images.append((timestamp, img))
@@ -140,25 +139,33 @@ def create_video_from_images(image_folder, output_video_path, fps=30):
                 print(f"Skipping file with invalid format: {img}")
     
     # Sort by timestamp
-    images.sort()  # Will sort by timestamp since it's the first element of tuple
-    image_files = [img[1] for img in images]  # Get just the filenames
+    images.sort()
+    image_files = [img[1] for img in images]
     
     if not image_files:
         print("No images found in the specified folder.")
-        return
+        return False
     
     print(f"Found {len(image_files)} images to process")
     
     first_image = cv2.imread(os.path.join(image_folder, image_files[0]))
     if first_image is None:
         print(f"Error reading first image: {image_files[0]}")
-        return
+        return False
         
     height, width, _ = first_image.shape
-    print(f"Video dimensions will be {width}x{height}")
+    print(f"Image dimensions: {width}x{height}")
     
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    video_writer = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
+    # Create a temporary AVI file first (more reliable encoding)
+    temp_avi = os.path.splitext(output_video_path)[0] + '_temp.avi'
+    
+    # Use MJPG codec for temporary AVI - most compatible
+    fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+    video_writer = cv2.VideoWriter(temp_avi, fourcc, fps, (width, height))
+    
+    if not video_writer.isOpened():
+        print("Error: Could not initialize VideoWriter")
+        return False
     
     frames_written = 0
     for image in image_files:
@@ -167,13 +174,156 @@ def create_video_from_images(image_folder, output_video_path, fps=30):
         if frame is not None:
             video_writer.write(frame)
             frames_written += 1
+            if frames_written % 30 == 0:
+                print(f"Processed {frames_written} frames...")
         else:
             print(f"Error reading frame: {image}")
     
     video_writer.release()
-    print(f"Video created successfully at {output_video_path}")
-    print(f"Wrote {frames_written} frames at {fps} FPS")
-    print(f"Video duration: {frames_written/fps:.2f} seconds")
+    
+    if frames_written == 0:
+        print("No frames were written to the video")
+        if os.path.exists(temp_avi):
+            os.remove(temp_avi)
+        return False
+        
+    if not os.path.exists(temp_avi) or os.path.getsize(temp_avi) == 0:
+        print("Error: Temporary video file is empty or does not exist")
+        return False
+    
+    
+    # Convert to MP4 using FFmpeg with specific encoding parameters
+    try:
+        ffmpeg_cmd = [
+            'ffmpeg', '-y',  # Overwrite output file if it exists
+            '-i', temp_avi,  # Input file
+            '-c:v', 'libx264',  # Use H.264 codec
+            '-preset', 'medium',  # Encoding preset (balance between speed and quality)
+            '-crf', '23',  # Constant Rate Factor (lower = better quality, 23 is default)
+            '-movflags', '+faststart',  # Enable fast start for web playback
+            '-pix_fmt', 'yuv420p',  # Pixel format for better compatibility
+            output_video_path
+        ]
+        
+        # Run FFmpeg
+        result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            print(f"FFmpeg conversion failed: {result.stderr}")
+            return False
+            
+        # Verify the output file
+        if not os.path.exists(output_video_path) or os.path.getsize(output_video_path) == 0:
+            print("Error: Final MP4 file is empty or does not exist")
+            return False
+            
+        
+        # Clean up temporary AVI file
+        os.remove(temp_avi)
+        return True
+        
+    except Exception as e:
+        print(f"Error during conversion: {str(e)}")
+        if os.path.exists(temp_avi):
+            os.remove(temp_avi)
+        return False
+
+def download_from_gcs(source_blob_name):
+    """Downloads a blob from the bucket to tmp directory."""
+    try:
+        # Create tmp directory if it doesn't exist
+        tmp_dir = "/tmp"
+        if not os.path.exists(tmp_dir):
+            os.makedirs(tmp_dir)
+            
+        # Generate a unique filename
+        tmp_filename = os.path.join(tmp_dir, f"temp_video_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4")
+        
+        storage_client = storage.Client()
+        bucket = storage_client.bucket(bucket_name)
+        blob = bucket.blob(source_blob_name)
+        
+        # Download to tmp file
+        with open(tmp_filename, "wb") as file_obj:
+            blob.download_to_file(file_obj)
+            
+        print(f"Downloaded {source_blob_name} to {tmp_filename}")
+        return tmp_filename
+    except Exception as e:
+        print(f"Error downloading from GCS: {str(e)}")
+        traceback.print_exc()
+        return None
+
+def upload_video_to_gcs(video_path):
+    """Upload video to Google Cloud Storage"""
+    if not os.path.exists(video_path):
+        print(f"Error: Video file {video_path} does not exist")
+        return False
+        
+    if os.path.getsize(video_path) == 0:
+        print(f"Error: Video file {video_path} is empty")
+        return False
+        
+    try:
+        # Verify the video file is readable
+        try:
+            cap = cv2.VideoCapture(video_path)
+            if not cap.isOpened():
+                print("Error: Cannot open video file for verification")
+                return False
+            ret, frame = cap.read()
+            if not ret:
+                print("Error: Cannot read frames from video file")
+                return False
+            cap.release()
+        except Exception as e:
+            print(f"Error verifying video file: {str(e)}")
+            return False
+            
+        # Find first json file in directory to use as credentials
+        json_files = [f for f in os.listdir() if f.endswith('.json')]
+        if not json_files:
+            raise Exception("No JSON credential file found in directory")
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = json_files[0]
+        storage_client = storage.Client()
+        bucket = storage_client.bucket(bucket_name)
+        
+        # Generate a unique filename using timestamp
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        destination_blob_name = f"{GCS_FOLDER}/video_{timestamp}.mp4"
+        
+        blob = bucket.blob(destination_blob_name)
+        
+        # Set content type and cache control before upload
+        blob.content_type = 'video/mp4'
+        blob.cache_control = 'public, max-age=3600'  # Cache for 1 hour
+        
+        # Upload the file with explicit content type
+        with open(video_path, 'rb') as file_obj:
+            blob.upload_from_file(
+                file_obj,
+                content_type='video/mp4',
+                timeout=600  # 10 minute timeout
+            )
+        
+        # Verify the upload
+        if not blob.exists():
+            print("Error: Blob does not exist after upload")
+            return False
+            
+        # Generate a signed URL that will work for 1 hour
+        signed_url = blob.generate_signed_url(
+            version="v4",
+            expiration=datetime.timedelta(hours=1),
+            method="GET"
+        )
+        
+        
+        return True
+    except Exception as e:
+        print(f"Error uploading to GCS: {str(e)}")
+        traceback.print_exc()
+        return False
 
 def main():
     setup()
@@ -196,10 +346,36 @@ def main():
                 rotated_image.save(image_path)
             else:
                 print(f"Skipping rotation for {filename} due to error")
+                
+    # Use tmp directory for video processing
+    tmp_dir = "/tmp"
+    if not os.path.exists(tmp_dir):
+        os.makedirs(tmp_dir)
     
+    output_video = os.path.join(tmp_dir, "output_video.mp4")
+    
+    # Delete existing output video if it exists
+    if os.path.exists(output_video):
+        os.remove(output_video)
+        print(f"Deleted existing output video: {output_video}")
+        
     # create video from images
-    create_video_from_images("temp_frames", "output_video.mp4", 30)
-
+    if not create_video_from_images("temp_frames", output_video, 30):
+        print("Failed to create video file")
+        return
+    
+    # upload video to gcs
+    if not upload_video_to_gcs(output_video):
+        print("Failed to upload video to GCS")
+        return
+        
+    # Clean up tmp file
+    try:
+        os.remove(output_video)
+    except:
+        pass
+        
+    print("Successfully completed video creation and upload")
     print("Exiting program...")
 
 if __name__ == "__main__":
