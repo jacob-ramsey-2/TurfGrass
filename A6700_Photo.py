@@ -24,404 +24,203 @@ def setup():
     SHUTTER_SPEED_SETTINGS = ['1/8000', '1/6400', '1/5000', '1/4000', '1/3200', '1/2500', '1/2000', '1/1600', '1/1250', '1/1000', '1/800', '1/640', '1/500', '1/400', '1/320', '1/250', '1/200', '1/160', '1/125', '1/100', '1/80', '1/60', '1/50', '1/40', '1/30', '1/25', '1/20', '1/15', '1/13', '1/10', '1/8', '1/6', '1/5', '1/4', '0.3"', '0.4"', '0.5"', '0.6"', '0.8"', '1"', '1.3"', '1.6"', '2"', '2.5"', '3.2"', '4"', '5"', '6"', '8"', '10"', '13"', '15"', '20"', '25"', '30"']
     global ISO_SETTINGS
     ISO_SETTINGS = ['100', '200', '400', '800', '1600', '3200', '6400', '12800', '25600', '51200', '102400']
-    global WHITE_BALANCE_SETTINGS
-    WHITE_BALANCE_SETTINGS = ['Auto', 'Daylight', 'Cloudy', 'Shade', 'Tungsten', 'Fluorescent', 'Flash', 'Custom']  
-    global FOCUS_SETTINGS
-    FOCUS_SETTINGS = ['Manual', 'Auto']
     global EXPOSURE_MODE_SETTINGS
     EXPOSURE_MODE_SETTINGS = ['Manual', 'Aperture Priority', 'Shutter Priority', 'Program', 'Bulb']
 
     global SETTINGS
-    SETTINGS = [APERTURE_SETTINGS, SHUTTER_SPEED_SETTINGS, ISO_SETTINGS, WHITE_BALANCE_SETTINGS, FOCUS_SETTINGS, EXPOSURE_MODE_SETTINGS]
+    SETTINGS = [APERTURE_SETTINGS, SHUTTER_SPEED_SETTINGS, ISO_SETTINGS, EXPOSURE_MODE_SETTINGS]
     global SETTINGS_NAMES  
-    SETTINGS_NAMES = ['aperture', 'shutter_speed', 'iso', 'white_balance', 'focus', 'exposure_mode']
+    SETTINGS_NAMES = ['aperture', 'shutter_speed', 'iso', 'exposure_mode']
 
 # Add this function after the setup() function but before the connect_to_cam() function
 def initialize_camera_settings(camera):
-    """
-    Initialize the global settings variables with values actually supported by the camera.
-    This ensures we only offer options that the camera can accept.
-    """
-    global APERTURE_SETTINGS, SHUTTER_SPEED_SETTINGS, ISO_SETTINGS
-    global WHITE_BALANCE_SETTINGS, FOCUS_SETTINGS, EXPOSURE_MODE_SETTINGS
-    global SETTINGS, SETTINGS_NAMES
-    
-    # Default fallback values in case we can't get settings from camera
-    default_settings = {
-        'aperture': ['f/1.4', 'f/2.0', 'f/2.8', 'f/4.0', 'f/5.6', 'f/8.0', 'f/11.0', 'f/16.0', 'f/22.0', 'f/32.0'],
-        'shutterspeed': ['1/8000', '1/6400', '1/5000', '1/4000', '1/3200', '1/2500', '1/2000', '1/1600', '1/1250', '1/1000', 
-                         '1/800', '1/640', '1/500', '1/400', '1/320', '1/250', '1/200', '1/160', '1/125', '1/100'],
-        'iso': ['100', '200', '400', '800', '1600', '3200', '6400', '12800', '25600', '51200', '102400'],
-        'whitebalance': ['Auto', 'Daylight', 'Cloudy', 'Shade', 'Tungsten', 'Fluorescent', 'Flash', 'Custom'],
-        'focusmode': ['Manual', 'Auto'],
-        'expprogram': ['Manual', 'Aperture Priority', 'Shutter Priority', 'Program', 'Bulb']
-    }
-    
-    # Mapping from our setting names to actual camera config names
-    setting_map = {
-        'shutter_speed': 'shutterspeed',
-        'iso': 'iso',
-        'white_balance': 'whitebalance',
-        'focus': 'focusmode',
-        'exposure_mode': 'expprogram'
-    }
-    
-    # Get camera configuration
     try:
         config = gp.check_result(gp.gp_camera_get_config(camera))
         
-        # Set camera to Aperture Priority mode first to ensure aperture settings can be accessed
+        # Default fallback values
+        default_settings = {
+            'aperture': ['f/1.4', 'f/2.0', 'f/2.8', 'f/4.0', 'f/5.6', 'f/8.0', 'f/11.0', 'f/16.0', 'f/22.0', 'f/32.0'],
+            'shutterspeed': ['1/8000', '1/6400', '1/5000', '1/4000', '1/3200', '1/2500', '1/2000', '1/1600', '1/1250', '1/1000', 
+                         '1/800', '1/640', '1/500', '1/400', '1/320', '1/250', '1/200', '1/160', '1/125', '1/100'],
+            'iso': ['100', '200', '400', '800', '1600', '3200', '6400', '12800', '25600', '51200', '102400'],
+            'expprogram': ['Manual', 'Aperture Priority', 'Shutter Priority', 'Program', 'Bulb']
+        }
+        
+        setting_map = {
+            'shutter_speed': 'shutterspeed',
+            'iso': 'iso',
+            'exposure_mode': 'expprogram'
+        }
+        
         try:
-            # Find the exposure program widget
+            config = gp.check_result(gp.gp_camera_get_config(camera))
             exp_widget = gp.check_result(gp.gp_widget_get_child_by_name(config, 'expprogram'))
             
-            # Get current exposure mode
-            current_exp_mode = gp.check_result(gp.gp_widget_get_value(exp_widget))
-            print(f"Current exposure mode: {current_exp_mode}")
-            
-            # Get available exposure modes
             exp_choices = []
             for i in range(gp.check_result(gp.gp_widget_count_choices(exp_widget))):
                 exp_choices.append(gp.check_result(gp.gp_widget_get_choice(exp_widget, i)))
             
-            print(f"Available exposure modes: {exp_choices}")
-            
-            # Find an appropriate aperture priority mode
             ap_mode = None
             for mode in ['Aperture Priority', 'A', 'Av', 'aperture-priority']:
                 if mode in exp_choices:
                     ap_mode = mode
                     break
             
-            # If we found an aperture priority mode and we're not already in it
-            if ap_mode and current_exp_mode != ap_mode:
-                print(f"Setting camera to {ap_mode} mode for aperture control...")
+            if ap_mode:
                 gp.check_result(gp.gp_widget_set_value(exp_widget, ap_mode))
                 gp.check_result(gp.gp_camera_set_config(camera, config))
-                print(f"Camera set to {ap_mode} mode")
-                
-                # Get a fresh config after changing the mode
                 config = gp.check_result(gp.gp_camera_get_config(camera))
-            elif not ap_mode:
-                print("Could not find Aperture Priority mode in available choices.")
-                print("Aperture settings may not work correctly.")
-        except Exception as e:
-            print(f"Error setting exposure mode: {str(e)}")
-            print("Continuing with initialization...")
+        except:
+            pass
         
-        # Initialize settings with values from camera
-        camera_settings = {}
-        
-        # Find the aperture configuration using our new function
         aperture_config, _ = find_aperture_config(camera)
         if aperture_config:
             aperture_property_name = aperture_config.get_name()
             setting_map['aperture'] = aperture_property_name
-            print(f"Found aperture property with name: {aperture_property_name}")
-        else:
-            print("Could not find aperture property with any known name")
         
-        # Print all available config options to help with debugging
-        print("\nAll available camera config options:")
-        for i in range(gp.check_result(gp.gp_widget_count_children(config))):
-            child = gp.check_result(gp.gp_widget_get_child(config, i))
-            name = gp.check_result(gp.gp_widget_get_name(child))
-            print(f"  - {name}")
-        
-        # Now get settings using the updated mapping
+        camera_settings = {}
         for setting_name, camera_setting_name in setting_map.items():
             try:
                 setting_widget = gp.check_result(gp.gp_widget_get_child_by_name(config, camera_setting_name))
                 widget_type = gp.check_result(gp.gp_widget_get_type(setting_widget))
                 
-                # For menu or radio widgets, get available choices
                 if widget_type in (gp.GP_WIDGET_RADIO, gp.GP_WIDGET_MENU):
                     choices = []
                     for i in range(gp.check_result(gp.gp_widget_count_choices(setting_widget))):
                         choice = gp.check_result(gp.gp_widget_get_choice(setting_widget, i))
                         choices.append(choice)
                     
-                    if choices:  # Only update if we got some choices
-                        # For aperture, check if values already have 'f/' prefix
+                    if choices:
                         if setting_name == 'aperture':
-                            # Check if the values already have the 'f/' prefix
                             has_prefix = any(str(choice).startswith('f/') for choice in choices)
-                            
-                            if has_prefix:
-                                # Values already have 'f/' prefix, use them as is
-                                print(f"Aperture values already have 'f/' prefix, using as is")
-                            else:
-                                # Add 'f/' prefix to make it more user-friendly
+                            if not has_prefix:
                                 choices = [f"f/{choice}" for choice in choices]
-                        
                         camera_settings[setting_name] = choices
-                        print(f"Found {len(choices)} options for {setting_name}: {choices[:5]}...")
-            except Exception as e:
-                print(f"Could not get choices for {setting_name}: {str(e)}")
+            except:
+                pass
         
-        # Update global variables with camera settings or fallback to defaults
+        global APERTURE_SETTINGS, SHUTTER_SPEED_SETTINGS, ISO_SETTINGS, EXPOSURE_MODE_SETTINGS, SETTINGS, SETTINGS_NAMES
+        
         APERTURE_SETTINGS = camera_settings.get('aperture', default_settings['aperture'])
         SHUTTER_SPEED_SETTINGS = camera_settings.get('shutter_speed', default_settings['shutterspeed'])
         ISO_SETTINGS = camera_settings.get('iso', default_settings['iso'])
-        WHITE_BALANCE_SETTINGS = camera_settings.get('white_balance', default_settings['whitebalance'])
-        FOCUS_SETTINGS = camera_settings.get('focus', default_settings['focusmode'])
         EXPOSURE_MODE_SETTINGS = camera_settings.get('exposure_mode', default_settings['expprogram'])
         
-        # Update the SETTINGS list with the new values - removing saturation, contrast, and sharpness
-        SETTINGS = [APERTURE_SETTINGS, SHUTTER_SPEED_SETTINGS, ISO_SETTINGS, WHITE_BALANCE_SETTINGS, 
-                   FOCUS_SETTINGS, EXPOSURE_MODE_SETTINGS]
+        SETTINGS = [APERTURE_SETTINGS, SHUTTER_SPEED_SETTINGS, ISO_SETTINGS, EXPOSURE_MODE_SETTINGS]
+        SETTINGS_NAMES = ['aperture', 'shutter_speed', 'iso', 'exposure_mode']
         
-        # Update SETTINGS_NAMES to match SETTINGS - removing saturation, contrast, and sharpness
-        SETTINGS_NAMES = ['aperture', 'shutter_speed', 'iso', 'white_balance', 'focus', 'exposure_mode']
-        
-        print("Camera settings initialized successfully")
-    except Exception as e:
-        print(f"Error initializing camera settings: {str(e)}")
-        print("Using default settings")
-        
-        # Use default settings if we couldn't get them from the camera
-        APERTURE_SETTINGS = default_settings['aperture']
-        SHUTTER_SPEED_SETTINGS = default_settings['shutterspeed']
-        ISO_SETTINGS = default_settings['iso']
-        WHITE_BALANCE_SETTINGS = default_settings['whitebalance']
-        FOCUS_SETTINGS = default_settings['focusmode']
-        EXPOSURE_MODE_SETTINGS = default_settings['expprogram']
-        
-        # Update the SETTINGS list with the default values - removing saturation, contrast, and sharpness
-        SETTINGS = [APERTURE_SETTINGS, SHUTTER_SPEED_SETTINGS, ISO_SETTINGS, WHITE_BALANCE_SETTINGS, 
-                   FOCUS_SETTINGS, EXPOSURE_MODE_SETTINGS]
-        
-        # Update SETTINGS_NAMES to match SETTINGS - removing saturation, contrast, and sharpness
-        SETTINGS_NAMES = ['aperture', 'shutter_speed', 'iso', 'white_balance', 'focus', 'exposure_mode']
+    except:
+        pass
 
 # connect to camera establish basic settings
 def connect_to_cam():
-    print('Please connect and switch on your camera')
-    print('Checking for camera connection...')
-    
     global camera
     camera = gp.check_result(gp.gp_camera_new())
     
-    # Set a timeout for camera connection attempts (in seconds)
     max_attempts = 5
     attempt = 0
     
     while attempt < max_attempts:
         attempt += 1
         try:
-            print(f"Connection attempt {attempt}/{max_attempts}...")
             camera.init()
-            print("Camera connected successfully!")
-            # Print camera model information if available
-            try:
-                config = gp.check_result(gp.gp_camera_get_config(camera))
-                camera_model = gp.check_result(gp.gp_widget_get_child_by_name(config, "cameramodel"))
-                model_value = gp.check_result(gp.gp_widget_get_value(camera_model))
-                print(f"Connected to: {model_value}")
-            except:
-                print("Connected to camera (model information unavailable)")
-            
-            # Initialize camera settings after successful connection
-            print("Initializing camera settings...")
             initialize_camera_settings(camera)
-            
-            break
+            return
         except gp.GPhoto2Error as ex:
-            if ex.code == gp.GP_ERROR_MODEL_NOT_FOUND:
-                # No camera detected
-                print("No camera detected. Please check that:")
-                print("1. Your camera is connected to the computer")
-                print("2. Your camera is powered on")
-                print("3. Your camera is in the correct mode (usually PC Connection or similar)")
-                print("Waiting 2 seconds before trying again...")
-                time.sleep(2)
-                continue
-            elif ex.code == gp.GP_ERROR_IO_USB_CLAIM:
-                print("Camera is in use by another application. Please close any other programs using the camera.")
-                print("Waiting 2 seconds before trying again...")
-                time.sleep(2)
-                continue
-            else:
-                # Some other error we can't handle here
-                print(f"Error connecting to camera: {ex}")
-                print(f"Error code: {ex.code}")
-                print("Please ensure your camera is:")
-                print("1. Properly connected via USB")
-                print("2. Powered on")
-                print("3. Set to the correct connection mode")
-                print("4. Not being used by another application")
-                
-                if attempt >= max_attempts:
-                    print("\nFailed to connect after multiple attempts.")
-                    print("You may need to:")
-                    print("1. Disconnect and reconnect your camera")
-                    print("2. Restart your camera")
-                    print("3. Check your USB cable")
-                    print("4. Ensure you have the correct permissions to access the camera")
-                    raise
-                
-                print(f"Trying again in 2 seconds... (Attempt {attempt}/{max_attempts})")
-                time.sleep(2)
-                continue
-        except Exception as e:
-            print(f"Unexpected error: {str(e)}")
             if attempt >= max_attempts:
-                print("Failed to connect after multiple attempts due to unexpected errors.")
-                raise
-            print(f"Trying again in 2 seconds... (Attempt {attempt}/{max_attempts})")
+                if ex.code == gp.GP_ERROR_MODEL_NOT_FOUND:
+                    print("No camera detected. Please check connection and power.")
+                elif ex.code == gp.GP_ERROR_IO_USB_CLAIM:
+                    print("Camera is in use by another application.")
+                else:
+                    print("Error connecting to camera. Please check connection and settings.")
+                sys.exit(1)
             time.sleep(2)
-            continue
-    
-    if attempt >= max_attempts:
-        print("Failed to connect to camera after maximum attempts.")
-        print("Please check your camera connection and try running the program again.")
-        sys.exit(1)
-    
-    # Operation completed successfully
-    return
+        except Exception as e:
+            if attempt >= max_attempts:
+                print("Failed to connect to camera. Please check connection and try again.")
+                sys.exit(1)
+            time.sleep(2)
 
 # take single photo
 def take_photo():
     try:
         global camera
-        
-        # Generate a timestamp for unique filenames
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         local_filename = f"capture_{timestamp}.jpg"
         
-        # Minimal output during interval shooting
-        is_interval_shooting = 'num_pics' in globals() and globals().get('num_pics', 1) > 1
-        
-        if not is_interval_shooting:
-            print(f"Attempting to capture image...")
-        
-        # Use a different approach to capture the image
-        # Instead of using camera.capture which returns a CameraFilePath,
-        # we'll use camera_capture_preview which returns the image data directly
         try:
-            # First try to capture a preview
             preview_file = camera.capture_preview()
             preview_file.save(local_filename)
-            
-            if not is_interval_shooting:
-                print(f"Saved preview image to {local_filename}")
-            
-            # Upload to Google Cloud Storage
+            print("Took image")
             try:
-                # Set your bucket name
                 bucket_name = "turfgrass"
                 destination_name = f"image_{timestamp}.jpg"
                 
-                # Find first json file in directory to use as credentials
                 json_files = [f for f in os.listdir() if f.endswith('.json')]
                 if not json_files:
-                    raise Exception("No JSON credential file found in directory")
+                    raise Exception("No JSON credential file found")
                 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = json_files[0]
                 
-                # Upload the file
                 storage_client = storage.Client()
                 bucket = storage_client.bucket(bucket_name)
                 blob = bucket.blob(destination_name)
                 
                 with open(local_filename, 'rb') as f:
-                    # Add content_type to ensure browser displays the image properly
                     blob.upload_from_file(f, content_type="image/jpeg")
                 
-                if not is_interval_shooting:
-                    print(f"Image successfully uploaded to {destination_name} in bucket {bucket_name}")
-                
-                # Clean up local file
                 if os.path.exists(local_filename):
                     os.remove(local_filename)
-                    if not is_interval_shooting:
-                        print(f"Temporary file {local_filename} removed")
                 
                 return True
                 
-            except Exception as upload_error:
-                if not is_interval_shooting:
-                    print(f"Error uploading to GCS: {str(upload_error)}")
+            except:
                 return False
                 
-        except Exception as preview_error:
-            if not is_interval_shooting:
-                print(f"Error capturing preview: {str(preview_error)}")
-            
-            # Try an alternative approach - trigger capture and download
+        except:
             try:
-                if not is_interval_shooting:
-                    print("Trying alternative capture method...")
-                
-                # Trigger capture
                 camera.trigger_capture()
-                time.sleep(2)  # Wait for capture to complete
+                time.sleep(2)
                 
-                # List files on camera
                 folder = "/"
                 for name, value in camera.folder_list_files(folder):
-                    if not is_interval_shooting:
-                        print(f"Found file on camera: {folder}/{name}")
-                    
-                    # Get the most recent file
                     camera_file = camera.file_get(folder, name, gp.GP_FILE_TYPE_NORMAL)
                     camera_file.save(local_filename)
                     
-                    if not is_interval_shooting:
-                        print(f"Saved image to {local_filename}")
-                    
-                    # Upload to Google Cloud Storage
                     try:
-                        # Set your bucket name
                         bucket_name = "turfgrass"
                         destination_name = f"image_{timestamp}.jpg"
                         
                         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "ai-research-451903-6fb81b030f50.json"
                         
-                        # Upload the file
                         storage_client = storage.Client()
                         bucket = storage_client.bucket(bucket_name)
                         blob = bucket.blob(destination_name)
                         
                         with open(local_filename, 'rb') as f:
-                            # Add content_type to ensure browser displays the image properly
                             blob.upload_from_file(f, content_type="image/jpeg")
                         
-                        if not is_interval_shooting:
-                            print(f"Image successfully uploaded to {destination_name} in bucket {bucket_name}")
-                        
-                        # Clean up local file
                         if os.path.exists(local_filename):
                             os.remove(local_filename)
-                            if not is_interval_shooting:
-                                print(f"Temporary file {local_filename} removed")
                         
-                        # Try to delete from camera
                         try:
                             camera.file_delete(folder, name)
-                            if not is_interval_shooting:
-                                print(f"Deleted file from camera")
                         except:
                             pass
                         
                         return True
                         
-                    except Exception as upload_error:
-                        if not is_interval_shooting:
-                            print(f"Error uploading to GCS: {str(upload_error)}")
+                    except:
                         return False
                     
-                    # Only process the first file
                     break
                     
-            except Exception as alt_error:
-                if not is_interval_shooting:
-                    print(f"Alternative capture method failed: {str(alt_error)}")
+            except:
                 return False
     
-    except Exception as e:
-        print(f"Error in take_photo: {str(e)}")
-        
-    # Force garbage collection to free memory
+    except:
+        pass
+    
     import gc
     gc.collect()
     
@@ -486,8 +285,6 @@ def set_camera_setting(camera, setting_name, value):
     setting_map = {
         'shutter_speed': 'shutterspeed',
         'iso': 'iso',
-        'white_balance': 'whitebalance',
-        'focus': 'focusmode',
         'exposure_mode': 'expprogram'
     }
     
@@ -811,8 +608,6 @@ def debug_camera_setting(camera, setting_name):
     setting_map = {
         'shutter_speed': 'shutterspeed',
         'iso': 'iso',
-        'white_balance': 'whitebalance',
-        'focus': 'focusmode',
         'exposure_mode': 'expprogram'
     }
     
@@ -962,65 +757,20 @@ def debug_camera_setting(camera, setting_name):
 
 # prompt user to enter settings and take picture
 def prompt():
-    global camera  # Add this line to access the global camera variable
+    global camera
 
-    # Ask if user wants to debug camera settings
-    print("Do you want to debug camera settings? (yes/no)")
-    debug_mode = input().lower()
-    
-    if debug_mode == "yes" or debug_mode == "y":
-        print("\n--- Camera Settings Debug Mode ---")
-        print("1. List all camera settings")
-        print("2. Debug specific setting")
-        print("3. Debug problematic settings (aperture, saturation, contrast, sharpness)")
-        print("4. Exit debug mode")
-        
-        debug_choice = input("Enter your choice (1-4): ")
-        
-        if debug_choice == "1":
-            print("\nListing all camera settings:")
-            list_camera_settings(camera)
-            return prompt()  # Restart prompt after debugging
-        
-        elif debug_choice == "2":
-            setting_name = input("Enter the setting name to debug: ")
-            print(f"\nDebugging setting: {setting_name}")
-            debug_camera_setting(camera, setting_name)
-            return prompt()  # Restart prompt after debugging
-        
-        elif debug_choice == "3":
-            print("\nDebugging problematic settings:")
-            problematic_settings = ["aperture", "saturation", "contrast", "sharpness"]
-            for setting in problematic_settings:
-                print(f"\n--- {setting.upper()} ---")
-                debug_camera_setting(camera, setting)
-            return prompt()  # Restart prompt after debugging
-        
-        elif debug_choice == "4":
-            print("Exiting debug mode")
-        
-        else:
-            print("Invalid choice. Exiting debug mode.")
-    
     # Ask if user wants default settings
-    print("Do you want to use default/auto settings? (yes/no)")
-    use_defaults = input().lower()
+    use_defaults = input("Use default/auto settings? (yes/no): ").lower()
     
     # camera settings questions
     def prompt_settings():
-        # First, set the exposure mode to ensure aperture settings will work
         try:
             config = gp.check_result(gp.gp_camera_get_config(camera))
-            
-            # Find the exposure program widget
             exp_widget = gp.check_result(gp.gp_widget_get_child_by_name(config, 'expprogram'))
-            
-            # Get available exposure modes
             exp_choices = []
             for i in range(gp.check_result(gp.gp_widget_count_choices(exp_widget))):
                 exp_choices.append(gp.check_result(gp.gp_widget_get_choice(exp_widget, i)))
             
-            # Find an appropriate aperture priority mode
             ap_mode = None
             for mode in ['Aperture Priority', 'A', 'Av', 'aperture-priority']:
                 if mode in exp_choices:
@@ -1028,277 +778,115 @@ def prompt():
                     break
             
             if ap_mode:
-                print(f"\nSetting camera to {ap_mode} mode for aperture control...")
                 gp.check_result(gp.gp_widget_set_value(exp_widget, ap_mode))
                 gp.check_result(gp.gp_camera_set_config(camera, config))
-                print(f"Camera set to {ap_mode} mode")
-                
-                # Update the exposure mode in our settings
-                for i, setting_name in enumerate(SETTINGS_NAMES):
-                    if setting_name == 'exposure_mode':
-                        # Find the index of the aperture priority mode in the exposure mode settings
-                        for j, mode in enumerate(EXPOSURE_MODE_SETTINGS):
-                            if mode == ap_mode or (mode == 'Aperture Priority' and ap_mode in ['A', 'Av']):
-                                # Skip asking for exposure mode since we've already set it
-                                print(f"\nExposure mode automatically set to {ap_mode} for aperture control")
-                                break
-            else:
-                print("Could not find Aperture Priority mode in available choices.")
-                print("Aperture settings may not work correctly.")
         except Exception as e:
-            print(f"Error setting exposure mode: {str(e)}")
-        
-        # Get the latest available aperture settings from the camera
+            pass
+
         available_apertures = get_available_apertures(camera)
         if available_apertures:
-            # Update the global aperture settings with the actual values from the camera
             global APERTURE_SETTINGS
             APERTURE_SETTINGS = available_apertures
-            # Update the SETTINGS list with the new aperture settings
             for i, setting_name in enumerate(SETTINGS_NAMES):
                 if setting_name == 'aperture':
                     SETTINGS[i] = available_apertures
                     break
-        
+
         # Now prompt for each setting
         for i in range(len(SETTINGS)):
             setting_name = SETTINGS_NAMES[i]
             
-            # Skip exposure mode if we've already set it to aperture priority
             if setting_name == 'exposure_mode' and 'ap_mode' in locals() and ap_mode:
                 continue
                 
             available_settings = SETTINGS[i]
             
-            # Show available options with more context
-            print(f"\nPlease enter the {setting_name} setting:")
+            print(f"\n{setting_name.replace('_', ' ').title()} Options:")
+            print(", ".join(available_settings))
             
-            # For ISO, show a note about available values
-            if setting_name == 'iso':
-                print("Note: If the camera doesn't accept your ISO value, it will try to use the closest available value.")
+            setting = input(f"Enter {setting_name.replace('_', ' ')}: ")
             
-            # For aperture, show a note about aperture priority mode
-            if setting_name == 'aperture':
-                print("Note: Camera has been set to Aperture Priority mode to enable aperture control.")
-                print(f"Available aperture values from camera: {', '.join(available_apertures) if available_apertures else 'None detected'}")
-            
-            # Display available options in a more readable format
-            if len(available_settings) > 10:
-                # If there are many options, show them in groups
-                print("Available options:")
-                for j in range(0, len(available_settings), 5):
-                    print(", ".join(available_settings[j:j+5]))
-            else:
-                # If there are few options, show them on one line
-                print(f"Available options: {', '.join(available_settings)}")
-            
-            setting = input("> ")
-            
-            # Special handling for ISO - allow any numeric value
             if setting_name == 'iso' and setting.isdigit():
-                # Allow any numeric ISO value, the set_camera_setting function will handle finding the closest match
                 pass
             else:
-                # For other settings, validate against the available options
                 while setting not in available_settings:
-                    print(f"Invalid setting. Please enter a valid {setting_name} setting from the options above.")
-                    setting = input("> ")
+                    setting = input(f"Invalid. Enter {setting_name.replace('_', ' ')}: ")
             
-            # Set the camera setting
             set_camera_setting(camera, setting_name, setting)
         
-        # print summary of settings
-        print("\nCamera settings summary")
-        print('=====================')
-        config = gp.check_result(gp.gp_camera_get_config(camera))
-        for i in range(len(SETTINGS)):
-            try:
-                setting_widget = gp.check_result(gp.gp_widget_get_child_by_name(config, SETTINGS_NAMES[i]))
-                print(f"{SETTINGS_NAMES[i]}: {gp.check_result(gp.gp_widget_get_value(setting_widget))}")
-            except Exception as e:
-                print(f"Could not get value for {SETTINGS_NAMES[i]}: {str(e)}")
+       
+        
     
     global first    
-    # if first time or user wants default settings
     if first:
         if use_defaults == "yes" or use_defaults == "y":
             try:
-                # Set camera to auto mode
                 config = gp.check_result(gp.gp_camera_get_config(camera))
-                
-                # Try to set camera to auto/program mode
-                try:
-                    expprogram = gp.check_result(gp.gp_widget_get_child_by_name(config, "expprogram"))
-                    gp.check_result(gp.gp_widget_set_value(expprogram, "Auto"))
-                    gp.check_result(gp.gp_camera_set_config(camera, config))
-                    print("Camera set to Auto mode")
-                except Exception as e:
-                    print(f"Could not set camera to Auto mode: {str(e)}")
-                
-                # Increase brightness by setting exposure compensation
-                try:
-                    # Get a fresh config after setting auto mode
-                    config = gp.check_result(gp.gp_camera_get_config(camera))
-                    
-                    # Try different possible names for exposure compensation
-                    exposure_comp_names = ["exposurecompensation", "exposurecomp", "exposure-compensation", "expcomp"]
-                    
-                    for name in exposure_comp_names:
-                        try:
-                            exp_comp = gp.check_result(gp.gp_widget_get_child_by_name(config, name))
-                            # Get current choices
-                            choice_count = gp.check_result(gp.gp_widget_count_choices(exp_comp))
-                            choices = [gp.check_result(gp.gp_widget_get_choice(exp_comp, i)) for i in range(choice_count)]
-                            
-                            # Find a positive exposure compensation value
-                            # Typically exposure compensation values are like: -2, -1.7, -1.3, -1, -0.7, -0.3, 0, 0.3, 0.7, 1, 1.3, 1.7, 2
-                            positive_values = [c for c in choices if isinstance(c, str) and (c.startswith("+") or (c[0].isdigit() and c != "0"))]
-                            
-                            if positive_values:
-                                # Choose a moderate positive value (around +1 if available)
-                                target_value = next((v for v in positive_values if v in ["1", "+1", "1.0", "+1.0"]), positive_values[0])
-                                gp.check_result(gp.gp_widget_set_value(exp_comp, target_value))
-                                gp.check_result(gp.gp_camera_set_config(camera, config))
-                                print(f"Increased brightness: set {name} to {target_value}")
-                                break
-                            else:
-                                print(f"No positive exposure compensation values found")
-                        except Exception as inner_e:
-                            continue
-                    
-                    # Try to increase ISO as an alternative way to increase brightness
-                    try:
-                        iso = gp.check_result(gp.gp_widget_get_child_by_name(config, "iso"))
-                        choice_count = gp.check_result(gp.gp_widget_count_choices(iso))
-                        choices = [gp.check_result(gp.gp_widget_get_choice(iso, i)) for i in range(choice_count)]
-                        
-                        # Find a higher ISO value (400 is a good balance for brightness without too much noise)
-                        if "400" in choices:
-                            gp.check_result(gp.gp_widget_set_value(iso, "400"))
-                            gp.check_result(gp.gp_camera_set_config(camera, config))
-                            print("Increased brightness: set ISO to 400")
-                    except Exception as iso_e:
-                        print(f"Could not adjust ISO: {str(iso_e)}")
-                    
-                except Exception as e:
-                    print(f"Could not increase brightness: {str(e)}")
-                
-                print("Using default/auto settings with increased brightness")
-            except Exception as e:
-                print(f"Error setting default settings: {str(e)}")
-                print("Falling back to manual settings")
+                expprogram = gp.check_result(gp.gp_widget_get_child_by_name(config, "expprogram"))
+                gp.check_result(gp.gp_widget_set_value(expprogram, "Auto"))
+                gp.check_result(gp.gp_camera_set_config(camera, config))
+            except:
                 prompt_settings()
         else:
             prompt_settings()
     else:
-        print("Do you want to change the previous settings? (y/n)")
-        change_settings = input().lower()
-        if change_settings == "y" or change_settings == "yes":
+        change_settings = input("Change previous settings? (yes/no): ").lower()
+        if change_settings in ["y", "yes"]:
             if use_defaults == "yes" or use_defaults == "y":
                 try:
-                    # Set camera to auto mode
                     config = gp.check_result(gp.gp_camera_get_config(camera))
-                    
-                    # Try to set camera to auto/program mode
-                    try:
-                        expprogram = gp.check_result(gp.gp_widget_get_child_by_name(config, "expprogram"))
-                        gp.check_result(gp.gp_widget_set_value(expprogram, "Auto"))
-                        gp.check_result(gp.gp_camera_set_config(camera, config))
-                        print("Camera set to Auto mode")
-                    except Exception as e:
-                        print(f"Could not set camera to Auto mode: {str(e)}")
-                    
-                    print("Using default/auto settings")
-                except Exception as e:
-                    print(f"Error setting default settings: {str(e)}")
-                    print("Falling back to manual settings")
+                    expprogram = gp.check_result(gp.gp_widget_get_child_by_name(config, "expprogram"))
+                    gp.check_result(gp.gp_widget_set_value(expprogram, "Auto"))
+                    gp.check_result(gp.gp_camera_set_config(camera, config))
+                except:
                     prompt_settings()
             else:
                 prompt_settings()
-    
-    print("How many pictures do you want to take?")
+
     while True:
         try:
-            num_pics = int(input())
-            if num_pics > 40:
-                print("Please enter a number less than 40")
-                print("How many pictures do you want to take?")
-                continue
-            break
+            num_pics = int(input("Number of pictures to take (max 40): "))
+            if num_pics <= 40:
+                break
         except ValueError:
-            print("Please enter a valid number")
-            print("How many pictures do you want to take?")
+            continue
 
     if num_pics == 1:
-
-        print('Capturing 1 image')
         take_photo()
-    
     else:
-        print("How many seconds inbetween each picture? (You can use decimal values like 0.1)")
         while True:
             try:
-                interval = float(input())
+                interval = float(input("Seconds between pictures: "))
                 break
             except ValueError:
-                print("Please enter a valid number for the interval")
-                print("How many seconds inbetween each picture? (You can use decimal values like 0.1)")
-        
-        # Remove interval restrictions
-        # User can set any interval they want
+                continue
         
         successful_captures = 0
-        captured_filenames = []  # Store filenames for summary
+        captured_filenames = []
         
         for i in range(num_pics):
-            print(f"\nCapturing image {i+1} of {num_pics}")
-            
-            # If this is not the first image and there's an interval, wait silently
             if i > 0 and interval > 0:
                 time.sleep(interval)
             
-            # Take photo and check result
-            result = False
             try:
                 result = take_photo()
-                # Store the filename if successful
                 if result:
                     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
                     filename = f"image_{timestamp}.jpg"
                     captured_filenames.append(filename)
-            except Exception as e:
-                # Minimal error output
-                print(f"Error during capture {i+1}")
-                result = False
-                
-            # Update success counter
-            if result:
-                successful_captures += 1
-            else:
-                print(f"Failed to capture image {i+1}")
-            
-            # If we've had multiple failures, try to reset the camera
-            if i > 0 and successful_captures == 0:
-                try:
-                    print("Attempting to reset camera connection...")
-                    camera.exit()
-                    time.sleep(2)
-                    camera = gp.check_result(gp.gp_camera_new())
-                    camera.init()
-                    print("Camera connection reset successfully")
-                except Exception as reset_error:
-                    print("Could not reset camera. You may need to restart the program")
-                    break
+                    successful_captures += 1
+            except:
+                if i > 0 and successful_captures == 0:
+                    try:
+                        camera.exit()
+                        time.sleep(2)
+                        camera = gp.check_result(gp.gp_camera_new())
+                        camera.init()
+                    except:
+                        break
         
-        # Print summary
-        print("\n--- Capture Session Summary ---")
-        print(f"Successfully captured {successful_captures} of {num_pics} images.")
-        print("All images were saved to Google Cloud Storage bucket: turfgrass")
-        if captured_filenames:
-            print("\nCaptured files:")
-            for filename in captured_filenames:
-                print(f"- {filename}")
-        print("-------------------------------")
+        print(f"\nCaptured {successful_captures} of {num_pics} images")
+        print("Images saved to Google Cloud Storage bucket: turfgrass")
 
 # main function
 def main():
@@ -1314,75 +902,6 @@ def main():
         if user_input == "n" or user_input == "no":
             continue_prompt = False
 
-def interval_shooting(interval_seconds, count=None):
-    # Initialize variables
-    start_time = time.time()
-    photo_count = 0
-    
-    try:
-        while True:
-            # Check if we've reached the count limit
-            if count is not None and photo_count >= count:
-                print(f"Completed {count} photos. Exiting.")
-                break
-                
-            # Calculate time until next photo
-            current_time = time.time()
-            elapsed_time = current_time - start_time
-            photos_should_have_taken = int(elapsed_time / interval_seconds)
-            
-            if photos_should_have_taken > photo_count:
-                # Time to take another photo
-                print(f"\nTaking photo {photo_count + 1}")
-                if count is not None:
-                    print(f" of {count}")
-                
-                # Take the photo
-                file_path = take_photo()
-                
-                if file_path:
-                    # Upload to Google Cloud Storage if enabled
-                    if upload_to_gcs:
-                        upload_file_to_gcs(file_path, bucket_name)
-                    
-                    photo_count += 1
-                    last_photo_time = time.time()
-                else:
-                    print("Failed to take photo. Retrying at next interval.")
-            
-            # Calculate time to next photo
-            next_photo_time = start_time + ((photo_count + 1) * interval_seconds)
-            wait_time = next_photo_time - time.time()
-            
-            # Only show countdown for waits longer than 3 seconds
-            if wait_time > 3:
-                # Display a simple countdown
-                print(f"\nNext photo in: ", end="", flush=True)
-                remaining = int(wait_time)
-                
-                while remaining > 3:
-                    print(f"{remaining}...", end="", flush=True)
-                    time.sleep(1)
-                    remaining -= 1
-                
-                # Final 3-second countdown without beeps
-                while remaining > 0:
-                    print(f"{remaining}...", end="", flush=True)
-                    time.sleep(1)
-                    remaining -= 1
-                
-                print("Capturing!")
-            else:
-                # For short intervals, just wait
-                if wait_time > 0:
-                    time.sleep(wait_time)
-                print("Capturing!")
-            
-    except KeyboardInterrupt:
-        print("\nInterval shooting stopped by user.")
-    except Exception as e:
-        print(f"\nError during interval shooting: {str(e)}")
-        traceback.print_exc()
 
 if __name__ == "__main__":
     main()

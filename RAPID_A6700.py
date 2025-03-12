@@ -18,20 +18,29 @@ import io # type: ignore
 import uuid # type: ignore
 from PIL import Image # type: ignore
 
-# Google Cloud Storage configuration
-BUCKET_NAME = "turfgrass"  # Replace with your actual bucket name
-GCS_FOLDER = "a6700_frames"  # Folder in the bucket to store frames
+
 
 def setup():
     """Initialize logging and basic setup"""
     logging.basicConfig(format='%(levelname)s: %(name)s: %(message)s', level=logging.WARNING)
     callback_obj = gp.check_result(gp.use_python_logging())
     
+    # Define global settings variables
+    global APERTURE_SETTINGS, SHUTTER_SPEED_SETTINGS, ISO_SETTINGS
+    global SETTINGS, SETTINGS_NAMES
     
-    # Set your bucket name
-    global bucket_name
+    # Default settings (will be updated with actual camera values)
+    APERTURE_SETTINGS = ['f/2.8', 'f/3.2', 'f/3.5', 'f/4.0', 'f/4.5', 'f/5.0', 'f/5.6', 'f/6.3', 'f/7.1', 'f/8.0', 'f/9.0', 'f/10.0', 'f/11.0', 'f/13.0', 'f/14.0', 'f/16.0', 'f/18.0', 'f/20.0', 'f/22.0']
+    SHUTTER_SPEED_SETTINGS = ['1/8000', '1/4000', '1/2000', '1/1000', '1/500', '1/250', '1/125', '1/60', '1/30', '1/15']
+    ISO_SETTINGS = ['100', '200', '400', '800', '1600', '3200', '6400', '12800']
+    
+    SETTINGS = [APERTURE_SETTINGS, SHUTTER_SPEED_SETTINGS, ISO_SETTINGS]
+    SETTINGS_NAMES = ['aperture', 'shutterspeed', 'iso']
+    
+    # Google Cloud Storage configuration
+    global bucket_name, GCS_FOLDER
     bucket_name = "turfgrass"
-        
+    GCS_FOLDER = "a6700_frames"  # Folder in the bucket to store frames     
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "ai-research-451903-6fb81b030f50.json"
         
     global storage_client
@@ -41,6 +50,7 @@ def setup():
 
 def connect_to_cam():
     """Connect to the camera"""
+    global camera
     camera = gp.check_result(gp.gp_camera_new())
     
     while True:
@@ -62,18 +72,271 @@ def connect_to_cam():
         traceback.print_exc()
         return False
 
+def initialize_camera_settings(camera):
+    """Initialize the global settings variables with values actually supported by the camera."""
+    global APERTURE_SETTINGS, SHUTTER_SPEED_SETTINGS, ISO_SETTINGS
+    global SETTINGS, SETTINGS_NAMES
+    
+    # Store default values to use as fallback
+    DEFAULT_APERTURE = ['f/2.8', 'f/3.2', 'f/3.5', 'f/4.0', 'f/4.5', 'f/5.0', 'f/5.6', 'f/6.3', 'f/7.1', 'f/8.0', 'f/9.0', 'f/10.0', 'f/11.0', 'f/13.0', 'f/14.0', 'f/16.0', 'f/18.0', 'f/20.0', 'f/22.0']
+    DEFAULT_SHUTTER = ['1/8000', '1/4000', '1/2000', '1/1000', '1/500', '1/250', '1/125', '1/60', '1/30', '1/15']
+    DEFAULT_ISO = ['100', '200', '400', '800', '1600', '3200', '6400', '12800']
+    
+    try:
+        config = gp.check_result(gp.gp_camera_get_config(camera))
+        
+        # Update settings lists with actual camera values
+        for i, setting_name in enumerate(SETTINGS_NAMES):
+            try:
+                setting = gp.check_result(gp.gp_widget_get_child_by_name(config, setting_name))
+                choices = []
+                for j in range(gp.check_result(gp.gp_widget_count_choices(setting))):
+                    choice = gp.check_result(gp.gp_widget_get_choice(setting, j))
+                    choices.append(choice)
+                
+                # If we got choices from the camera, use them; otherwise use defaults
+                if choices:
+                    if setting_name == 'aperture':
+                        # Ensure aperture values have f/ prefix
+                        choices = [f"f/{c}" if not str(c).startswith('f/') else c for c in choices]
+                        APERTURE_SETTINGS = choices
+                    elif setting_name == 'shutterspeed':
+                        SHUTTER_SPEED_SETTINGS = choices
+                    elif setting_name == 'iso':
+                        ISO_SETTINGS = choices
+                else:
+                    if setting_name == 'aperture':
+                        APERTURE_SETTINGS = DEFAULT_APERTURE
+                    elif setting_name == 'shutterspeed':
+                        SHUTTER_SPEED_SETTINGS = DEFAULT_SHUTTER
+                    elif setting_name == 'iso':
+                        ISO_SETTINGS = DEFAULT_ISO
+                
+                # Update the SETTINGS list
+                if setting_name == 'aperture':
+                    SETTINGS[0] = APERTURE_SETTINGS
+                elif setting_name == 'shutterspeed':
+                    SETTINGS[1] = SHUTTER_SPEED_SETTINGS
+                elif setting_name == 'iso':
+                    SETTINGS[2] = ISO_SETTINGS
+                    
+            except Exception as e:
+                # Use defaults if there's an error
+                if setting_name == 'aperture':
+                    APERTURE_SETTINGS = DEFAULT_APERTURE
+                    SETTINGS[0] = DEFAULT_APERTURE
+                elif setting_name == 'shutterspeed':
+                    SHUTTER_SPEED_SETTINGS = DEFAULT_SHUTTER
+                    SETTINGS[1] = DEFAULT_SHUTTER
+                elif setting_name == 'iso':
+                    ISO_SETTINGS = DEFAULT_ISO
+                    SETTINGS[2] = DEFAULT_ISO
+        
+        return config
+    except Exception as e:
+        print(f"Error initializing camera settings: {str(e)}")
+        # In case of complete failure, ensure we at least have the default values
+        APERTURE_SETTINGS = DEFAULT_APERTURE
+        SHUTTER_SPEED_SETTINGS = DEFAULT_SHUTTER
+        ISO_SETTINGS = DEFAULT_ISO
+        SETTINGS = [APERTURE_SETTINGS, SHUTTER_SPEED_SETTINGS, ISO_SETTINGS]
+        return None
+
+def list_camera_settings(camera):
+    """List all available camera settings and their current values."""
+    try:
+        config = gp.check_result(gp.gp_camera_get_config(camera))
+        print("\nCurrent Camera Settings:")
+        print("=======================")
+        for i in range(gp.check_result(gp.gp_widget_count_children(config))):
+            child = gp.check_result(gp.gp_widget_get_child(config, i))
+            name = gp.check_result(gp.gp_widget_get_name(child))
+            widget_type = gp.check_result(gp.gp_widget_get_type(child))
+            
+            # Get current value if possible
+            try:
+                value = gp.check_result(gp.gp_widget_get_value(child))
+                value_str = f"Current value: {value}"
+            except:
+                value_str = "Value not available"
+            
+            # For menu or radio widgets, list available choices
+            choices = []
+            if widget_type in (gp.GP_WIDGET_RADIO, gp.GP_WIDGET_MENU):
+                try:
+                    for j in range(gp.check_result(gp.gp_widget_count_choices(child))):
+                        choices.append(gp.check_result(gp.gp_widget_get_choice(child, j)))
+                    choices_str = f"\n  Available options: {choices}"
+                except:
+                    choices_str = ""
+            else:
+                choices_str = ""
+            
+            print(f"\n{name}:")
+            print(f"  {value_str}{choices_str}")
+    except Exception as e:
+        print(f"Error listing camera settings: {str(e)}")
+
+def set_camera_setting(camera, setting_name, value):
+    """Set a camera setting to the specified value."""
+    try:
+        config = gp.check_result(gp.gp_camera_get_config(camera))
+        setting = gp.check_result(gp.gp_widget_get_child_by_name(config, setting_name))
+        
+        # Get default values for validation fallback
+        DEFAULT_APERTURE = ['f/2.8', 'f/3.2', 'f/3.5', 'f/4.0', 'f/4.5', 'f/5.0', 'f/5.6', 'f/6.3', 'f/7.1', 'f/8.0', 'f/9.0', 'f/10.0', 'f/11.0', 'f/13.0', 'f/14.0', 'f/16.0', 'f/18.0', 'f/20.0', 'f/22.0']
+        DEFAULT_SHUTTER = ['1/8000', '1/4000', '1/2000', '1/1000', '1/500', '1/250', '1/125', '1/60', '1/30', '1/15']
+        DEFAULT_ISO = ['100', '200', '400', '800', '1600', '3200', '6400', '12800']
+        
+        # Verify the value is valid for this setting
+        if gp.check_result(gp.gp_widget_get_type(setting)) in (gp.GP_WIDGET_RADIO, gp.GP_WIDGET_MENU):
+            choices = []
+            try:
+                for i in range(gp.check_result(gp.gp_widget_count_choices(setting))):
+                    choice = gp.check_result(gp.gp_widget_get_choice(setting, i))
+                    choices.append(choice)
+            except:
+                # If we can't get choices from camera, use defaults
+                if setting_name == 'aperture':
+                    choices = DEFAULT_APERTURE
+                elif setting_name == 'shutterspeed':
+                    choices = DEFAULT_SHUTTER
+                elif setting_name == 'iso':
+                    choices = DEFAULT_ISO
+            
+            # If still no choices, use defaults
+            if not choices:
+                if setting_name == 'aperture':
+                    choices = DEFAULT_APERTURE
+                elif setting_name == 'shutterspeed':
+                    choices = DEFAULT_SHUTTER
+                elif setting_name == 'iso':
+                    choices = DEFAULT_ISO
+            
+            if value not in choices:
+                print(f"Warning: {value} is not in available choices for {setting_name}")
+                print(f"Using default choices: {choices}")
+                return False
+        
+        # Set the value
+        gp.check_result(gp.gp_widget_set_value(setting, value))
+        gp.check_result(gp.gp_camera_set_config(camera, config))
+        print(f"Successfully set {setting_name} to {value}")
+        return True
+    except Exception as e:
+        print(f"Error setting {setting_name}: {str(e)}")
+        return False
+
+def set_aperture(camera, aperture_value):
+    """Set the aperture of the camera."""
+    try:
+        config = gp.check_result(gp.gp_camera_get_config(camera))
+        
+        # Try to find the aperture setting
+        aperture_names = ['aperture', 'f-number', 'fnumber']
+        aperture_widget = None
+        
+        for name in aperture_names:
+            try:
+                aperture_widget = gp.check_result(gp.gp_widget_get_child_by_name(config, name))
+                if aperture_widget:
+                    break
+            except:
+                continue
+        
+        if not aperture_widget:
+            print("Could not find aperture setting")
+            return False
+        
+        # Get available choices
+        choices = []
+        for i in range(gp.check_result(gp.gp_widget_count_choices(aperture_widget))):
+            choice = gp.check_result(gp.gp_widget_get_choice(aperture_widget, i))
+            choices.append(choice)
+        
+        # Remove 'f/' prefix if the camera doesn't expect it
+        if not any(str(c).startswith('f/') for c in choices):
+            aperture_value = aperture_value.replace('f/', '')
+        
+        # Set the value
+        gp.check_result(gp.gp_widget_set_value(aperture_widget, aperture_value))
+        gp.check_result(gp.gp_camera_set_config(camera, config))
+        print(f"Successfully set aperture to {aperture_value}")
+        return True
+    except Exception as e:
+        print(f"Error setting aperture: {str(e)}")
+        return False
+
 def prompt():
-    """Get user input for capture parameters"""
+    """Get user input for capture parameters with enhanced settings control."""
     print("Welcome to the A6700 Rapid Frame Capture Script")
     
-    # Get duration
-    duration = int(input("Enter capture duration in seconds: "))
-    rotation = str(input("Rotate images? (y/n): "))
-    if rotation == "y":
-        rotation = True
+    # Initialize camera settings
+    config = initialize_camera_settings(camera)
+    if not config:
+        print("Warning: Could not initialize camera settings. Some features may be limited.")
+    
+    # Ask if user wants to use default settings
+    print("\nDo you want to use default/auto settings? (yes/no)")
+    use_defaults = input().lower()
+    
+    if use_defaults.startswith('y'):
+        try:
+            # Try to set a moderate ISO for better brightness
+            try:
+                if '400' in ISO_SETTINGS:
+                    set_camera_setting(camera, "iso", "400")
+            except:
+                pass
+            print("Using current camera settings with ISO 400")
+        except Exception as e:
+            print(f"Error setting default settings: {str(e)}")
     else:
-        rotation = False
-
+        # Walk through each setting
+        for i, setting_name in enumerate(SETTINGS_NAMES):
+            print(f"\nCurrent {setting_name}:")
+            try:
+                current = gp.check_result(gp.gp_widget_get_value(
+                    gp.check_result(gp.gp_widget_get_child_by_name(config, setting_name))))
+                print(f"Current value: {current}")
+            except:
+                print("Current value not available")
+            
+            print(f"\nAvailable {setting_name} options:")
+            for j, option in enumerate(SETTINGS[i]):
+                print(f"{j+1}. {option}")
+            
+            print("\nEnter the number of your choice (or press Enter to keep current):")
+            choice = input().strip()
+            
+            if choice:
+                try:
+                    choice_idx = int(choice) - 1
+                    if 0 <= choice_idx < len(SETTINGS[i]):
+                        value = SETTINGS[i][choice_idx]
+                        if setting_name == 'aperture':
+                            set_aperture(camera, value)
+                        else:
+                            set_camera_setting(camera, setting_name, value)
+                    else:
+                        print("Invalid choice. Keeping current setting.")
+                except ValueError:
+                    print("Invalid input. Keeping current setting.")
+    
+    # Get duration
+    while True:
+        try:
+            print("\nEnter capture duration in seconds:")
+            duration = int(input())
+            if duration > 0:
+                break
+            print("Duration must be positive.")
+        except ValueError:
+            print("Please enter a valid number.")
+    
+    
+    rotation = False
+    
     return duration, rotation
 
 def rotate_image(image_path):
