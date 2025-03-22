@@ -1,4 +1,3 @@
-
 # Sony A6700 Camera Control Scripts
 
 This repository contains Python scripts for controlling a Sony A6700 camera via USB connection, capturing images, and uploading them to Google Cloud Storage. These scripts are designed to run on Windows Subsystem for Linux (WSL).
@@ -51,6 +50,25 @@ sudo apt install -y python3-pip python3-dev libgphoto2-dev libgphoto2-port12
 3. Create a service account and download the JSON credentials file
 4. Place the credentials file in the project root directory
 5. Create a bucket in Google Cloud Storage
+
+## gphoto2 Library Integration
+
+These scripts utilize the powerful gphoto2 library to control the Sony A6700 camera. gphoto2 is an open-source library and command-line utility that provides comprehensive support for digital cameras, including:
+
+- Remote camera control
+- Image capture and download
+- Camera settings adjustment
+- Live view capabilities
+- Support for multiple camera models and manufacturers
+
+The Python scripts in this repository use the `gphoto2` Python bindings (`python-gphoto2`) to interface with the camera. This allows for programmatic control of the camera's functions through a clean, Pythonic API.
+
+For more information about gphoto2:
+- Official documentation: [http://www.gphoto.org/doc/](http://www.gphoto.org/doc/)
+- Supported cameras list: [http://www.gphoto.org/doc/remote/](http://www.gphoto.org/doc/remote/)
+- Python bindings documentation: [https://github.com/jim-easterbrook/python-gphoto2](https://github.com/jim-easterbrook/python-gphoto2)
+
+The library is installed as part of the system dependencies (libgphoto2-dev and libgphoto2-port12) mentioned in the Prerequisites section.
 
 ## Connecting the Camera
 
