@@ -4,7 +4,7 @@ This repository contains Python scripts for controlling a Sony A6700 camera via 
 
 ## Prerequisites
 
-### 1. WSL Setup
+### 1. WSL Setup (Skip this if on native Linux)
 1. Enable WSL on Windows:
    ```powershell
    # Run in PowerShell as Administrator
@@ -87,25 +87,34 @@ The library is installed as part of the system dependencies (libgphoto2-dev and 
    lsusb | grep Sony
    ```
 
-## Running the Scripts
 
-### NoPreview_A6700.py
-This script captures images without preview and uploads them to Google Cloud Storage:
-```bash
-python NoPreview_A6700.py
-```
+### For Windows/WSL Users:
+1. Connect the Sony A6700 to your computer via USB
+2. In PowerShell (as Administrator), attach the camera to WSL:
+   ```powershell
+   # List USB devices
+   usbipd list
 
-### RAPID_A6700.py
-This script is optimized for rapid capture:
-```bash
-python RAPID_A6700.py
-```
+   # Find the Sony camera in the list and note its bus ID
+   # Attach the camera to WSL
+   usbipd attach --wsl --busid <BUS_ID>
+   ```
+3. In WSL, verify the camera is detected:
+   ```bash
+   lsusb | grep Sony
+   ```
 
-### A6700_Photo.py
-This script provides more detailed control over camera settings:
-```bash
-python A6700_Photo.py
-```
+### For Native Linux Users:
+1. Connect the Sony A6700 to your computer via USB
+2. Verify the camera is detected:
+   ```bash
+   lsusb | grep Sony
+   ```
+3. Ensure your user has the necessary permissions:
+   ```bash
+   sudo usermod -a -G plugdev $USER
+   ```
+   You may need to log out and back in for the group changes to take effect.
 
 ## Camera Settings
 
