@@ -29,10 +29,12 @@ def setup():
     global APERTURE_SETTINGS, SHUTTER_SPEED_SETTINGS, ISO_SETTINGS
     global SETTINGS, SETTINGS_NAMES
     
-    # Default settings (will be updated with actual camera values)
-    APERTURE_SETTINGS = ['f/2.8', 'f/3.2', 'f/3.5', 'f/4.0', 'f/4.5', 'f/5.0', 'f/5.6', 'f/6.3', 'f/7.1', 'f/8.0', 'f/9.0', 'f/10.0', 'f/11.0', 'f/13.0', 'f/14.0', 'f/16.0', 'f/18.0', 'f/20.0', 'f/22.0']
-    SHUTTER_SPEED_SETTINGS = ['1/8000', '1/4000', '1/2000', '1/1000', '1/500', '1/250', '1/125', '1/60', '1/30', '1/15']
-    ISO_SETTINGS = ['100', '200', '400', '800', '1600', '3200', '6400', '12800']
+    global APERTURE_SETTINGS 
+    APERTURE_SETTINGS = ['f/2.8', 'f/3.2', 'f/3.5',  'f/4.0', 'f/4.5', 'f/5.0', 'f/5.6', 'f/6.3', 'f/7.1', 'f/8.0', 'f/9.0', 'f/10.0', 'f/11.0', 'f/13.0', 'f/14.0', 'f/16.0', 'f/18.0', 'f/20', 'f/22.0',]
+    global SHUTTER_SPEED_SETTINGS
+    SHUTTER_SPEED_SETTINGS = ['1/8000', '1/6400', '1/5000', '1/4000', '1/3200', '1/2500', '1/2000', '1/1600', '1/1250', '1/1000', '1/800', '1/640', '1/500', '1/400', '1/320', '1/250', '1/200', '1/160', '1/125', '1/100', '1/80', '1/60', '1/50', '1/40', '1/30', '1/25', '1/20', '1/15', '1/13', '1/10', '1/8', '1/6', '1/5', '1/4', '0.3"', '0.4"', '0.5"', '0.6"', '0.8"', '1"', '1.3"', '1.6"', '2"', '2.5"', '3.2"', '4"', '5"', '6"', '8"', '10"', '13"', '15"', '20"', '25"', '30"']
+    global ISO_SETTINGS
+    ISO_SETTINGS = ['100', '200', '400', '800', '1600', '3200', '6400', '12800', '25600', '51200', '102400']
     
     SETTINGS = [APERTURE_SETTINGS, SHUTTER_SPEED_SETTINGS, ISO_SETTINGS]
     SETTINGS_NAMES = ['aperture', 'shutterspeed', 'iso']
@@ -73,73 +75,18 @@ def connect_to_cam():
         return False
 
 def initialize_camera_settings(camera):
-    """Initialize the global settings variables with values actually supported by the camera."""
+    """Initialize the global settings variables with hardcoded values from setup()."""
     global APERTURE_SETTINGS, SHUTTER_SPEED_SETTINGS, ISO_SETTINGS
     global SETTINGS, SETTINGS_NAMES
     
-    # Store default values to use as fallback
-    DEFAULT_APERTURE = ['f/2.8', 'f/3.2', 'f/3.5', 'f/4.0', 'f/4.5', 'f/5.0', 'f/5.6', 'f/6.3', 'f/7.1', 'f/8.0', 'f/9.0', 'f/10.0', 'f/11.0', 'f/13.0', 'f/14.0', 'f/16.0', 'f/18.0', 'f/20.0', 'f/22.0']
-    DEFAULT_SHUTTER = ['1/8000', '1/4000', '1/2000', '1/1000', '1/500', '1/250', '1/125', '1/60', '1/30', '1/15']
-    DEFAULT_ISO = ['100', '200', '400', '800', '1600', '3200', '6400', '12800']
+    # The values are already set in setup(), we just need to ensure SETTINGS list is properly populated
+    SETTINGS = [APERTURE_SETTINGS, SHUTTER_SPEED_SETTINGS, ISO_SETTINGS]
     
     try:
         config = gp.check_result(gp.gp_camera_get_config(camera))
-        
-        # Update settings lists with actual camera values
-        for i, setting_name in enumerate(SETTINGS_NAMES):
-            try:
-                setting = gp.check_result(gp.gp_widget_get_child_by_name(config, setting_name))
-                choices = []
-                for j in range(gp.check_result(gp.gp_widget_count_choices(setting))):
-                    choice = gp.check_result(gp.gp_widget_get_choice(setting, j))
-                    choices.append(choice)
-                
-                # If we got choices from the camera, use them; otherwise use defaults
-                if choices:
-                    if setting_name == 'aperture':
-                        # Ensure aperture values have f/ prefix
-                        choices = [f"f/{c}" if not str(c).startswith('f/') else c for c in choices]
-                        APERTURE_SETTINGS = choices
-                    elif setting_name == 'shutterspeed':
-                        SHUTTER_SPEED_SETTINGS = choices
-                    elif setting_name == 'iso':
-                        ISO_SETTINGS = choices
-                else:
-                    if setting_name == 'aperture':
-                        APERTURE_SETTINGS = DEFAULT_APERTURE
-                    elif setting_name == 'shutterspeed':
-                        SHUTTER_SPEED_SETTINGS = DEFAULT_SHUTTER
-                    elif setting_name == 'iso':
-                        ISO_SETTINGS = DEFAULT_ISO
-                
-                # Update the SETTINGS list
-                if setting_name == 'aperture':
-                    SETTINGS[0] = APERTURE_SETTINGS
-                elif setting_name == 'shutterspeed':
-                    SETTINGS[1] = SHUTTER_SPEED_SETTINGS
-                elif setting_name == 'iso':
-                    SETTINGS[2] = ISO_SETTINGS
-                    
-            except Exception as e:
-                # Use defaults if there's an error
-                if setting_name == 'aperture':
-                    APERTURE_SETTINGS = DEFAULT_APERTURE
-                    SETTINGS[0] = DEFAULT_APERTURE
-                elif setting_name == 'shutterspeed':
-                    SHUTTER_SPEED_SETTINGS = DEFAULT_SHUTTER
-                    SETTINGS[1] = DEFAULT_SHUTTER
-                elif setting_name == 'iso':
-                    ISO_SETTINGS = DEFAULT_ISO
-                    SETTINGS[2] = DEFAULT_ISO
-        
         return config
     except Exception as e:
-        print(f"Error initializing camera settings: {str(e)}")
-        # In case of complete failure, ensure we at least have the default values
-        APERTURE_SETTINGS = DEFAULT_APERTURE
-        SHUTTER_SPEED_SETTINGS = DEFAULT_SHUTTER
-        ISO_SETTINGS = DEFAULT_ISO
-        SETTINGS = [APERTURE_SETTINGS, SHUTTER_SPEED_SETTINGS, ISO_SETTINGS]
+        print(f"Error getting camera config: {str(e)}")
         return None
 
 def list_camera_settings(camera):
@@ -370,7 +317,7 @@ def capture_frames(camera, duration, fps=30):
     
     # calculate total frames and time per frame
     total_frames = duration * fps
-    time_per_frame = 1 / fps
+    time_per_frame = (1 / fps) * 0.8
 
     # for each frame, capture the preview image and save it to the temp directory, and sleep until the next frame
     for i in range(total_frames):

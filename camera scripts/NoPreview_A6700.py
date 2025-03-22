@@ -19,98 +19,26 @@ def setup():
 
 
     global APERTURE_SETTINGS 
-    APERTURE_SETTINGS = ['f/1.4', 'f/2.0', 'f/2.8', 'f/4.0', 'f/5.6', 'f/8.0', 'f/11.0', 'f/16.0', 'f/22.0', 'f/32.0']
+    APERTURE_SETTINGS = ['f/2.8', 'f/3.2', 'f/3.5',  'f/4.0', 'f/4.5', 'f/5.0', 'f/5.6', 'f/6.3', 'f/7.1', 'f/8.0', 'f/9.0', 'f/10.0', 'f/11.0', 'f/13.0', 'f/14.0', 'f/16.0', 'f/18.0', 'f/20', 'f/22.0',]
     global SHUTTER_SPEED_SETTINGS
     SHUTTER_SPEED_SETTINGS = ['1/8000', '1/6400', '1/5000', '1/4000', '1/3200', '1/2500', '1/2000', '1/1600', '1/1250', '1/1000', '1/800', '1/640', '1/500', '1/400', '1/320', '1/250', '1/200', '1/160', '1/125', '1/100', '1/80', '1/60', '1/50', '1/40', '1/30', '1/25', '1/20', '1/15', '1/13', '1/10', '1/8', '1/6', '1/5', '1/4', '0.3"', '0.4"', '0.5"', '0.6"', '0.8"', '1"', '1.3"', '1.6"', '2"', '2.5"', '3.2"', '4"', '5"', '6"', '8"', '10"', '13"', '15"', '20"', '25"', '30"']
     global ISO_SETTINGS
     ISO_SETTINGS = ['100', '200', '400', '800', '1600', '3200', '6400', '12800', '25600', '51200', '102400']
-    global EXPOSURE_MODE_SETTINGS
-    EXPOSURE_MODE_SETTINGS = ['Manual', 'Aperture Priority', 'Shutter Priority', 'Program', 'Bulb']
 
     global SETTINGS
-    SETTINGS = [APERTURE_SETTINGS, SHUTTER_SPEED_SETTINGS, ISO_SETTINGS, EXPOSURE_MODE_SETTINGS]
+    SETTINGS = [APERTURE_SETTINGS, SHUTTER_SPEED_SETTINGS, ISO_SETTINGS]
     global SETTINGS_NAMES  
-    SETTINGS_NAMES = ['aperture', 'shutter_speed', 'iso', 'exposure_mode']
+    SETTINGS_NAMES = ['aperture', 'shutter_speed', 'iso']
 
 # Add this function after the setup() function but before the connect_to_cam() function
 def initialize_camera_settings(camera):
-    try:
-        config = gp.check_result(gp.gp_camera_get_config(camera))
-        
-        # Default fallback values
-        default_settings = {
-            'aperture': ['f/1.4', 'f/2.0', 'f/2.8', 'f/4.0', 'f/5.6', 'f/8.0', 'f/11.0', 'f/16.0', 'f/22.0', 'f/32.0'],
-            'shutterspeed': ['1/8000', '1/6400', '1/5000', '1/4000', '1/3200', '1/2500', '1/2000', '1/1600', '1/1250', '1/1000', 
-                         '1/800', '1/640', '1/500', '1/400', '1/320', '1/250', '1/200', '1/160', '1/125', '1/100'],
-            'iso': ['100', '200', '400', '800', '1600', '3200', '6400', '12800', '25600', '51200', '102400'],
-            'expprogram': ['Manual', 'Aperture Priority', 'Shutter Priority', 'Program', 'Bulb']
-        }
-        
-        setting_map = {
-            'shutter_speed': 'shutterspeed',
-            'iso': 'iso',
-            'exposure_mode': 'expprogram'
-        }
-        
-        try:
-            config = gp.check_result(gp.gp_camera_get_config(camera))
-            exp_widget = gp.check_result(gp.gp_widget_get_child_by_name(config, 'expprogram'))
-            
-            exp_choices = []
-            for i in range(gp.check_result(gp.gp_widget_count_choices(exp_widget))):
-                exp_choices.append(gp.check_result(gp.gp_widget_get_choice(exp_widget, i)))
-            
-            ap_mode = None
-            for mode in ['Aperture Priority', 'A', 'Av', 'aperture-priority']:
-                if mode in exp_choices:
-                    ap_mode = mode
-                    break
-            
-            if ap_mode:
-                gp.check_result(gp.gp_widget_set_value(exp_widget, ap_mode))
-                gp.check_result(gp.gp_camera_set_config(camera, config))
-                config = gp.check_result(gp.gp_camera_get_config(camera))
-        except:
-            pass
-        
-        aperture_config, _ = find_aperture_config(camera)
-        if aperture_config:
-            aperture_property_name = aperture_config.get_name()
-            setting_map['aperture'] = aperture_property_name
-        
-        camera_settings = {}
-        for setting_name, camera_setting_name in setting_map.items():
-            try:
-                setting_widget = gp.check_result(gp.gp_widget_get_child_by_name(config, camera_setting_name))
-                widget_type = gp.check_result(gp.gp_widget_get_type(setting_widget))
-                
-                if widget_type in (gp.GP_WIDGET_RADIO, gp.GP_WIDGET_MENU):
-                    choices = []
-                    for i in range(gp.check_result(gp.gp_widget_count_choices(setting_widget))):
-                        choice = gp.check_result(gp.gp_widget_get_choice(setting_widget, i))
-                        choices.append(choice)
-                    
-                    if choices:
-                        if setting_name == 'aperture':
-                            has_prefix = any(str(choice).startswith('f/') for choice in choices)
-                            if not has_prefix:
-                                choices = [f"f/{choice}" for choice in choices]
-                        camera_settings[setting_name] = choices
-            except:
-                pass
-        
-        global APERTURE_SETTINGS, SHUTTER_SPEED_SETTINGS, ISO_SETTINGS, EXPOSURE_MODE_SETTINGS, SETTINGS, SETTINGS_NAMES
-        
-        APERTURE_SETTINGS = camera_settings.get('aperture', default_settings['aperture'])
-        SHUTTER_SPEED_SETTINGS = camera_settings.get('shutter_speed', default_settings['shutterspeed'])
-        ISO_SETTINGS = camera_settings.get('iso', default_settings['iso'])
-        EXPOSURE_MODE_SETTINGS = camera_settings.get('exposure_mode', default_settings['expprogram'])
-        
-        SETTINGS = [APERTURE_SETTINGS, SHUTTER_SPEED_SETTINGS, ISO_SETTINGS, EXPOSURE_MODE_SETTINGS]
-        SETTINGS_NAMES = ['aperture', 'shutter_speed', 'iso', 'exposure_mode']
-        
-    except:
-        pass
+    # No need to query camera - use hardcoded values from setup()
+    global APERTURE_SETTINGS, SHUTTER_SPEED_SETTINGS, ISO_SETTINGS, SETTINGS, SETTINGS_NAMES
+    
+    # These values are already set in setup(), no need to modify them
+    # Just ensure SETTINGS list is properly populated
+    SETTINGS = [APERTURE_SETTINGS, SHUTTER_SPEED_SETTINGS, ISO_SETTINGS]
+    SETTINGS_NAMES = ['aperture', 'shutter_speed', 'iso']
 
 # connect to camera establish basic settings
 def connect_to_cam():
@@ -144,87 +72,8 @@ def connect_to_cam():
 
 # take single photo
 def take_photo():
-    try:
-        global camera
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        local_filename = f"capture_{timestamp}.jpg"
-        
-        try:
-            preview_file = camera.capture_preview()
-            preview_file.save(local_filename)
-            print("Took image")
-            try:
-                bucket_name = "turfgrass"
-                destination_name = f"image_{timestamp}.jpg"
-                
-                json_files = [f for f in os.listdir() if f.endswith('.json')]
-                if not json_files:
-                    raise Exception("No JSON credential file found")
-                os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = json_files[0]
-                
-                storage_client = storage.Client()
-                bucket = storage_client.bucket(bucket_name)
-                blob = bucket.blob(destination_name)
-                
-                with open(local_filename, 'rb') as f:
-                    blob.upload_from_file(f, content_type="image/jpeg")
-                
-                if os.path.exists(local_filename):
-                    os.remove(local_filename)
-                
-                return True
-                
-            except:
-                return False
-                
-        except:
-            try:
-                camera.trigger_capture()
-                time.sleep(2)
-                
-                folder = "/"
-                for name, value in camera.folder_list_files(folder):
-                    camera_file = camera.file_get(folder, name, gp.GP_FILE_TYPE_NORMAL)
-                    camera_file.save(local_filename)
-                    
-                    try:
-                        bucket_name = "turfgrass"
-                        destination_name = f"image_{timestamp}.jpg"
-                        
-                        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "ai-research-451903-6fb81b030f50.json"
-                        
-                        storage_client = storage.Client()
-                        bucket = storage_client.bucket(bucket_name)
-                        blob = bucket.blob(destination_name)
-                        
-                        with open(local_filename, 'rb') as f:
-                            blob.upload_from_file(f, content_type="image/jpeg")
-                        
-                        if os.path.exists(local_filename):
-                            os.remove(local_filename)
-                        
-                        try:
-                            camera.file_delete(folder, name)
-                        except:
-                            pass
-                        
-                        return True
-                        
-                    except:
-                        return False
-                    
-                    break
-                    
-            except:
-                return False
-    
-    except:
-        pass
-    
-    import gc
-    gc.collect()
-    
-    return False
+    global camera
+    camera.trigger_capture()
 
 # Function to upload a file to Google Cloud Storage with proper MIME type
 def upload_file_to_gcs(file_path, bucket_name):
@@ -285,7 +134,6 @@ def set_camera_setting(camera, setting_name, value):
     setting_map = {
         'shutter_speed': 'shutterspeed',
         'iso': 'iso',
-        'exposure_mode': 'expprogram'
     }
     
     # Get the actual camera setting name
@@ -608,7 +456,6 @@ def debug_camera_setting(camera, setting_name):
     setting_map = {
         'shutter_speed': 'shutterspeed',
         'iso': 'iso',
-        'exposure_mode': 'expprogram'
     }
     
     try:
@@ -764,41 +611,9 @@ def prompt():
     
     # camera settings questions
     def prompt_settings():
-        try:
-            config = gp.check_result(gp.gp_camera_get_config(camera))
-            exp_widget = gp.check_result(gp.gp_widget_get_child_by_name(config, 'expprogram'))
-            exp_choices = []
-            for i in range(gp.check_result(gp.gp_widget_count_choices(exp_widget))):
-                exp_choices.append(gp.check_result(gp.gp_widget_get_choice(exp_widget, i)))
-            
-            ap_mode = None
-            for mode in ['Aperture Priority', 'A', 'Av', 'aperture-priority']:
-                if mode in exp_choices:
-                    ap_mode = mode
-                    break
-            
-            if ap_mode:
-                gp.check_result(gp.gp_widget_set_value(exp_widget, ap_mode))
-                gp.check_result(gp.gp_camera_set_config(camera, config))
-        except Exception as e:
-            pass
-
-        available_apertures = get_available_apertures(camera)
-        if available_apertures:
-            global APERTURE_SETTINGS
-            APERTURE_SETTINGS = available_apertures
-            for i, setting_name in enumerate(SETTINGS_NAMES):
-                if setting_name == 'aperture':
-                    SETTINGS[i] = available_apertures
-                    break
-
         # Now prompt for each setting
         for i in range(len(SETTINGS)):
             setting_name = SETTINGS_NAMES[i]
-            
-            if setting_name == 'exposure_mode' and 'ap_mode' in locals() and ap_mode:
-                continue
-                
             available_settings = SETTINGS[i]
             
             print(f"\n{setting_name.replace('_', ' ').title()} Options:")
@@ -814,9 +629,6 @@ def prompt():
             
             set_camera_setting(camera, setting_name, setting)
         
-       
-        
-    
     global first    
     if first:
         if use_defaults == "yes" or use_defaults == "y":
@@ -854,39 +666,12 @@ def prompt():
     if num_pics == 1:
         take_photo()
     else:
-        while True:
-            try:
-                interval = float(input("Seconds between pictures: "))
-                break
-            except ValueError:
-                continue
-        
-        successful_captures = 0
-        captured_filenames = []
-        
         for i in range(num_pics):
-            if i > 0 and interval > 0:
-                time.sleep(interval)
-            
-            try:
-                result = take_photo()
-                if result:
-                    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-                    filename = f"image_{timestamp}.jpg"
-                    captured_filenames.append(filename)
-                    successful_captures += 1
-            except:
-                if i > 0 and successful_captures == 0:
-                    try:
-                        camera.exit()
-                        time.sleep(2)
-                        camera = gp.check_result(gp.gp_camera_new())
-                        camera.init()
-                    except:
-                        break
+            print("hi")
+            take_photo()
+            time.sleep(1)
         
-        print(f"\nCaptured {successful_captures} of {num_pics} images")
-        print("Images saved to Google Cloud Storage bucket: turfgrass")
+        
 
 # main function
 def main():
@@ -902,7 +687,5 @@ def main():
         if user_input == "n" or user_input == "no":
             continue_prompt = False
 
-
 if __name__ == "__main__":
-    main()
-
+    main() 
