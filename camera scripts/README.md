@@ -1,6 +1,46 @@
 # Sony A6700 Camera Control Scripts
 
-This repository contains Python scripts for controlling a Sony A6700 camera via USB connection, capturing images, and uploading them to Google Cloud Storage. These scripts are designed to run on Windows Subsystem for Linux (WSL).
+This repository contains Python scripts for controlling a Sony A6700 camera via USB connection, capturing images, and uploading them to Google Cloud Storage. 
+
+***These scripts are meant to be run on LINUX operating systems***
+
+***These scripts were designed for the Sony A6700, however they should work on most modern cameras, refer to the [gphoto2 supported devices](http://www.gphoto.org/proj/libgphoto2/support.php)***
+## Different Scripts
+### NoPreview_A6700.py
+This script operates as such:
+
+1. Connects to the camera.
+2. Asks the user if they want to use current settings.
+3. If not, prompt each setting, displaying the current options, and accepting user input.
+4. Ask for a number of images to be taken.
+5. Take that number of images, fully shuttering the camera lens.
+
+### A6700_Photo.py
+This script operates as such:
+
+1. Connects to the camera.
+2. Asks the user if they want to use current settings.
+3. If not, prompt each setting, displaying the current options, and accepting user input.
+4. Ask for a number of images to be taken.
+5. Ask for an interval to be taken at.
+6. Take each image at the given interval, capturing the PREVIEW of the image, effectively screenshotting the camera screen without shuttering the lens. 
+7. Save each image to Google Cloud Storage.
+
+### NoPreview_A6700.py
+This script operates as such:
+
+1. Connects to the camera.
+2. Asks the user if they want to use current settings.
+3. If not, prompt each setting, displaying the current options, and accepting user input.
+4. Asks user for a duration of capture.
+5. Captures 30 frames per second for the duration given.
+6. Compresses each frame, in chunks of 30 frames, and then compresses each chunk into an mp3.
+7. Save mp3 to Google Cloud Storage.
+
+
+
+
+
 
 ## Prerequisites
 
@@ -70,22 +110,7 @@ For more information about gphoto2:
 
 The library is installed as part of the system dependencies (libgphoto2-dev and libgphoto2-port12) mentioned in the Prerequisites section.
 
-## Connecting the Camera
-
-1. Connect the Sony A6700 to your computer via USB
-2. In PowerShell (as Administrator), attach the camera to WSL:
-   ```powershell
-   # List USB devices
-   usbipd list
-
-   # Find the Sony camera in the list and note its bus ID
-   # Attach the camera to WSL
-   usbipd attach --wsl --busid <BUS_ID>
-   ```
-3. In WSL, verify the camera is detected:
-   ```bash
-   lsusb | grep Sony
-   ```
+## Connecting to the Camera
 
 
 ### For Windows/WSL Users:

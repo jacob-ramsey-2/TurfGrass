@@ -25,32 +25,33 @@ We are conducting research at the University of Tennessee's Department of Agricu
    - Performance evaluation and metrics analysis
    - Refinement of the model based on test results
 
-## Technical Implementation
 
-This repository contains the code for automated image capture using a Sony A6700 camera. The system:
-- Controls camera settings (aperture, shutter speed, ISO, etc.)
-- Captures images at specified intervals
-- Automatically uploads images to Google Cloud Storage
-- Maintains consistent image quality for machine learning purposes
-
-## Dependencies
-- gphoto2
-- google-cloud-storage
-- Python 3.x
-
-## Usage
-The main script (`A6700_Photo.py`) handles the image capture process with configurable camera settings and automated cloud storage upload functionality.
 
 ## Research Applications
 This project aims to assist in:
 - Rapid identification of invasive weed species
 - Monitoring turfgrass health
 - Supporting precision agriculture practices
-- Developing automated lawn care solutions
+
+
+## How to Learn the Project and Codebase
+
+This project is in three different domains, AI programming, camera control programming, and overall linux operating system understanding. 
+
+To get familiar with all of these domains see these courses:
+- https://deeplizard.com/lesson/dla1zrlida
+- https://learnxinyminutes.com/python/
+- https://www.digitalocean.com/community/tutorials/an-introduction-to-linux-basics
+
+Once you are familiar with these basics, proceed to learning about this project:
+
+There are [camera scripts](</camera scripts/README.md>) and [NVIDIA scripts](</NVIDIA scripts/README.md>). These are related README's inside of these folders. 
+
 
 ## Contributors
 - University of Tennessee Department of Agriculture
-- [Add additional contributors as needed]
+- Jacob Ramsey
+- Dr. Samiappan
 
 ## License
 [Add appropriate license information] 

@@ -1,59 +1,24 @@
 # NVIDIA Jetson Orin NX Setup Guide
 
-This guide provides step-by-step instructions for setting up and configuring your NVIDIA Jetson Orin NX development kit.
+This guide provides step-by-step instructions for setting up and configuring your NVIDIA Jetson Orin NX development kit, made by Seeed and sold as the reComputer J4012.
+ 
 
-## Prerequisites
+## Understanding AI Environments
 
-- [ ] 
-- [ ] 
-- [ ] 
+Typically, open-source AI models are available via Docker containers. Containerization allows a consistancy of operating system and application environment on runtime. Watch this [video](https://www.youtube.com/watch?v=rIrNIzy6U_g) to understand the basics.
 
-## Hardware Setup
+## Hardware Reset
 
-1. 
-2. 
-3. 
+1. To reset the operating system of the kit, you will need a linux host machine 
+2. Follow the instructions [here](https://wiki.seeedstudio.com/reComputer_J4012_Flash_Jetpack/)
 
-## Initial Software Installation
+## Software Requirements
+When settting up your NVIDIA developer kit, you are goint to want to have a couple of things installed:
 
-1. 
-2. 
-3. 
+Follow this [video](https://www.youtube.com/watch?v=-KAyUHzRxHc) to install the required dependencies and get started using AI models.
 
-## System Configuration
 
-### Power Mode Settings
-1. 
-2. 
 
-### Network Configuration
-1. 
-2. 
-
-### CUDA and GPU Setup
-1. 
-2. 
-
-## Development Environment Setup
-
-### Installing Required Packages
-1. 
-2. 
-3. 
-
-### Setting Up Docker (Optional)
-1. 
-2. 
-
-## Troubleshooting
-
-Common issues and their solutions:
-
-### Issue 1: 
-Solution: 
-
-### Issue 2: 
-Solution: 
 
 ## Additional Resources
 
@@ -67,11 +32,7 @@ Solution:
 - Default username/password: 
 - Default IP configuration: 
 
-## Version Information
 
-- Jetpack Version: 
-- L4T Version: 
-- CUDA Version: 
 
 ## Contributing
 
