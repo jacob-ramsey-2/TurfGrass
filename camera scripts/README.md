@@ -42,6 +42,17 @@ This script operates as such:
 
 
 
+## Difference between Scripts
+A6700_Photo.py:
+   Takes "previews" of a number of photos, at a certain interval. Essentially taking a screenshot of the camera image, without engaging the shutter. These photos are saved to the directory you run the script in, and then saved to a Google Cloud Storage Bucket (the bucket api key needs to be in same directory), and then deleted from local directory.
+
+RAPID_A6700.py:
+   Takes "preivews" of a duration of photos (in seconds), and then stitches these images together into a mp3, and saves the mp3 to Google Cloud Storage Bucket (the bucket api key needs to be in same directory).
+
+NoPreview_A6700.py:
+   Takes real images at a certain interval. Saves to camera.
+
+
 ## Prerequisites
 
 ### 1. WSL Setup (Skip this if on native Linux)
