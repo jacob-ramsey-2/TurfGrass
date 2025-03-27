@@ -2,6 +2,11 @@
 
 This guide provides step-by-step instructions for setting up and configuring your NVIDIA Jetson Orin NX development kit.
 
+Most AI models and deployment level systems are containerized into a docker container. This is so that you can apply the software to any machine and have consistant performance. I encourage watching this video to understand the basics: https://www.youtube.com/watch?v=rIrNIzy6U_g. 
+
+
+
+
 ## Prerequisites
 
 - [ ] 
