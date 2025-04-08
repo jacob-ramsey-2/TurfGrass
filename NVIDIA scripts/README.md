@@ -16,6 +16,21 @@ When settting up your NVIDIA developer kit, you are goint to want to have a coup
 
 Follow this [video](https://www.youtube.com/watch?v=-KAyUHzRxHc) to install the required dependencies and get started using AI models.
 
+## Docker 
+Docker containers are extremely powerful and allow you to create an isolated environment on yuor jetson to run machine learning models. This ensures continuity between environments you are running the model in.
+
+Here are some resources to learn about Docker:
+1. https://www.youtube.com/watch?v=0K-I1jOxBL0&list=PLXYLzZ3XzIbhLxc2SA5JjL_ggJ3aMxuX-&index=1&pp=iAQB
+2. https://www.youtube.com/watch?v=HlH3QkS1F5Y&list=PLXYLzZ3XzIbhLxc2SA5JjL_ggJ3aMxuX-&index=2&pp=iAQB 
+
+# Jupyter Labs
+Jupyter labs allows you to run notebooks on the local machine.
+ 
+```Bash
+pip install jupyterlab // install
+
+jupyter lab // run
+```
 
 
 
