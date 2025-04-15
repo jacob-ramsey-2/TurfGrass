@@ -10,6 +10,12 @@ Typically, open-source AI models are available via Docker containers. Containeri
 
 1. To reset the operating system of the kit, you will need a linux host machine 
 2. Follow the instructions [here](https://wiki.seeedstudio.com/reComputer_J4012_Flash_Jetpack/)
+3. Once booted up on the ReComputer, execute these commands in the terminal:
+    ```bash
+    sudo apt-get install python3-pip
+    sudo apt-mark hold nvidia-l4t-bootloader nvidia-l4t-kernel nvidia-l4t-kernel-dtbs nvidia-l4t-kernel-headers
+    ```
+4. Follow the [instructions](https://www.jetson-ai-lab.com/tips_ssd-docker.html) to install docker runtime
 
 ## Software Requirements
 When settting up your NVIDIA developer kit, you are goint to want to have a couple of things installed:
@@ -30,7 +36,7 @@ Here are some resources to learn about Docker:
 2. Run the docker image in a container that has USB passthrough access:
 
     ``` bash
-    jetson-containers run --device=/dev/bus -i -t --runtime nvidia --entrypoint / bin/bash sam:36.4.0
+    jetson-containers run --device=/dev/bus -i -t --runtime nvidia --entrypoint  bin/bash sam:r36.4.0
     ```
 3. Once inside the container, run Jupyter Labs
     ```bash
