@@ -33,7 +33,7 @@ Here are some resources to learn about Docker:
 
 # Run SAM Pipeline
 
-1. If you haven't built a local docker SAM image, do so by following the [system setup](https://github.com/dusty-nv/jetson-containers/blob/master.docs.setup.md) and build:
+1. If you haven't built a local docker SAM image, do so by following the [system setup](https://github.com/dusty-nv/jetson-containers/blob/master/docs/setup.md) and build:
     ```bash
     jetson-containers build sam
     ```
