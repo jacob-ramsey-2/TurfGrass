@@ -30,7 +30,7 @@ Here are some resources to learn about Docker:
 2. Run the docker image in a container that has USB passthrough access:
 
     ``` bash
-    docker run --device=/dev/bus -i -t --runtime nvidia --entrypoint / bin/bash sam:36.4.0
+    jetson-containers run --device=/dev/bus -i -t --runtime nvidia --entrypoint / bin/bash sam:36.4.0
     ```
 3. Once inside the container, run Jupyter Labs
     ```bash
