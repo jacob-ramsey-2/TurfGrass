@@ -33,24 +33,31 @@ Here are some resources to learn about Docker:
 
 # Run SAM Pipeline
 
-1. If you haven't built a local docker SAM image, do so by following the [system setup](https://github.com/dusty-nv/jetson-containers/blob/master/docs/setup.md) and build:
+1. Install jetson-containers
     ```bash
+    git clone https://github.com/dusty-nv/jetson-containers
+    bash jetson-containers/install.sh
+    ```
+
+2. Build the SAM image by following the [system setup](https://github.com/dusty-nv/jetson-containers/blob/master/docs/setup.md) and build:
+    ```bash
+    cd jetson-containers
     jetson-containers build sam
     ```
 
-2. Run the docker image in a container that has USB passthrough access:
+3. Run the docker image in a container that has USB passthrough access:
 
     ``` bash
     jetson-containers run --device=/dev/bus -i -t --runtime nvidia --entrypoint  bin/bash sam:r36.4.0
     ```
-3. Once inside the container, run Jupyter Labs
+4. Once inside the container, run Jupyter Labs
     ```bash
     jupyter lab --allow-root
     ```
-4. Navigate to the SAM folder inside of /opt and then to Notebooks
+5. Navigate to the SAM folder inside of /opt and then to Notebooks
 
 
-5. Open up a terminal in this directory and clone this repostiory and install gphoto2
+6. Open up a terminal in this directory and clone this repostiory and install gphoto2
     ```bash
     git clone https://github.com/jacob-ramsey-2/TurfGrass.git
     apt-get update
@@ -58,9 +65,9 @@ Here are some resources to learn about Docker:
     pip install gphoto2
     ```
 
-6. Run SAM Pipeline
+7. Run SAM Pipeline
 
-7. OPTIONAL : If you want to monitor GPU usage, in the terminal where you started the docker container, open another tab and run:
+8. OPTIONAL : If you want to monitor GPU usage, in the terminal where you started the docker container, open another tab and run:
     ```bash 
     jtop
     ```
