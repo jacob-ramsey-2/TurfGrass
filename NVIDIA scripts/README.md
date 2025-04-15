@@ -49,6 +49,12 @@ Here are some resources to learn about Docker:
 
 6. Run SAM Pipeline
 
+7. OPTIONAL : If you want to monitor GPU usage, in the terminal where you started the docker container, open another tab and run:
+    ```bash 
+    jtop
+    ```
+    
+
 
 ## Additional Resources
 
