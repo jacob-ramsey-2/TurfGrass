@@ -31,9 +31,12 @@ Here are some resources to learn about Docker:
 1. https://www.youtube.com/watch?v=0K-I1jOxBL0&list=PLXYLzZ3XzIbhLxc2SA5JjL_ggJ3aMxuX-&index=1&pp=iAQB
 2. https://www.youtube.com/watch?v=HlH3QkS1F5Y&list=PLXYLzZ3XzIbhLxc2SA5JjL_ggJ3aMxuX-&index=2&pp=iAQB 
 
-# To run SAM Pipeline
+# Run SAM Pipeline
 
-1. If you haven't built a local docker SAM image, do so by following the system setup and build commands for https://github.com/dusty-nv/jetson-containers
+1. If you haven't built a local docker SAM image, do so by following the [system setup](https://github.com/dusty-nv/jetson-containers/blob/master.docs.setup.md) and build:
+    ```bash
+    jetson-containers build sam
+    ```
 
 2. Run the docker image in a container that has USB passthrough access:
 
