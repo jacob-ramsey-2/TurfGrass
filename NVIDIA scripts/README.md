@@ -14,6 +14,8 @@ Typically, open-source AI models are available via Docker containers. Containeri
     ```bash
     sudo apt-get install python3-pip
     sudo apt-mark hold nvidia-l4t-bootloader nvidia-l4t-kernel nvidia-l4t-kernel-dtbs nvidia-l4t-kernel-headers
+    sudo pip3 install jetson-stats
+    // now restart the device
     ```
 4. Follow the [instructions](https://www.jetson-ai-lab.com/tips_ssd-docker.html) to install docker runtime
 
