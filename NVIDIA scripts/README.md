@@ -23,15 +23,31 @@ Here are some resources to learn about Docker:
 1. https://www.youtube.com/watch?v=0K-I1jOxBL0&list=PLXYLzZ3XzIbhLxc2SA5JjL_ggJ3aMxuX-&index=1&pp=iAQB
 2. https://www.youtube.com/watch?v=HlH3QkS1F5Y&list=PLXYLzZ3XzIbhLxc2SA5JjL_ggJ3aMxuX-&index=2&pp=iAQB 
 
-# Jupyter Labs
-Jupyter labs allows you to run notebooks on the local machine.
- 
-```Bash
-pip install jupyterlab // install
+# To run SAM Pipeline
 
-jupyter lab // run
-```
+1. If you haven't built a local docker SAM image, do so by following the system setup and build commands for https://github.com/dusty-nv/jetson-containers
 
+2. Run the docker image in a container that has USB passthrough access:
+
+    ``` bash
+    docker run --device=/dev/bus -i -t --runtime nvidia --entrypoint / bin/bash sam:36.4.0
+    ```
+3. Once inside the container, run Jupyter Labs
+    ```bash
+    jupyter lab --allow-root
+    ```
+4. Navigate to the SAM folder inside of /opt and then to Notebooks
+
+
+5. Open up a terminal in this directory and clone this repostiory and install gphoto2
+    ```bash
+    git clone https://github.com/jacob-ramsey-2/TurfGrass.git
+    apt-get update
+    apt-get install libgphoto2-dev
+    pip install gphoto2
+    ```
+
+6. Run SAM Pipeline
 
 
 ## Additional Resources
