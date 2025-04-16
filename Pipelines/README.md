@@ -63,6 +63,7 @@ Here are some resources to learn about Docker:
     apt-get update
     apt-get install libgphoto2-dev
     pip install gphoto2
+    apt-get install usbutils
     ```
 
 7. Run SAM Pipeline
