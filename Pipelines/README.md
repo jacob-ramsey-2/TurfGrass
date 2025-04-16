@@ -48,6 +48,7 @@ Here are some resources to learn about Docker:
 3. Run the docker image in a container that has USB passthrough access:
 
     ``` bash
+    // make sure camera is plugged in and turned on before starting container
     jetson-containers run --device=/dev/bus -i -t --runtime nvidia --entrypoint  bin/bash sam:r36.4.0
     ```
 4. Once inside the container, run Jupyter Labs
