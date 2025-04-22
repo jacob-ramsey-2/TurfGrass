@@ -49,7 +49,7 @@ Here are some resources to learn about Docker:
 
     ``` bash
     // make sure camera is plugged in and turned on before starting container
-    jetson-containers run --device=/dev/bus -i -t --runtime nvidia --entrypoint  bin/bash sam:r36.4.0
+    jetson-containers run --device=/dev/bus -i -t --runtime nvidia --entrypoint  /bin/bash sam:r36.4.0
     ```
 4. Once inside the container, run Jupyter Labs
     ```bash
